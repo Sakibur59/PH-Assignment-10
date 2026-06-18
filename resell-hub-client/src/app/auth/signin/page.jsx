@@ -12,6 +12,7 @@ export default function SigninForm({ redirectTo = "/" }) {
   const [password, setPassword] = useState("");
   const [isVisible, setIsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const router = useRouter();
 
@@ -36,6 +37,32 @@ export default function SigninForm({ redirectTo = "/" }) {
       toast.error("Unexpected error occurred");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Google Sign-In Handler
+  const handleGoogleSignIn = async () => {
+    try {
+      setIsGoogleLoading(true);
+      
+      const { error } = await signIn.social({
+        provider: "google",
+        callbackURL: redirectTo,
+      });
+
+      if (error) {
+        toast.error(error.message || "Failed to sign in with Google");
+        return;
+      }
+
+      // The user will be redirected to Google's OAuth page
+      // After successful authentication, they'll be redirected back to the callbackURL
+      
+    } catch (error) {
+      toast.error("Failed to sign in with Google");
+      console.error("Google sign-in error:", error);
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
@@ -125,22 +152,26 @@ export default function SigninForm({ redirectTo = "/" }) {
           <Button
             type="button"
             variant="bordered"
+            isLoading={isGoogleLoading}
+            onPress={handleGoogleSignIn}
             className="h-12 w-full rounded-xl border-2 border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300 flex items-center justify-center gap-3 font-medium transition-all duration-200"
           >
-            <svg
-              className="h-5 w-5"
-              aria-hidden="true"
-              focusable="false"
-              role="img"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 488 512"
-            >
-              <path
-                fill="#4285F4"
-                d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"
-              ></path>
-            </svg>
-            Continue with Google
+            {!isGoogleLoading && (
+              <svg
+                className="h-5 w-5"
+                aria-hidden="true"
+                focusable="false"
+                role="img"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 488 512"
+              >
+                <path
+                  fill="#4285F4"
+                  d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"
+                ></path>
+              </svg>
+            )}
+            {isGoogleLoading ? "Redirecting to Google..." : "Continue with Google"}
           </Button>
 
           {/* FOOTER */}

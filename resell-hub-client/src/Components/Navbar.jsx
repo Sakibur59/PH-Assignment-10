@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Button } from "@heroui/react";
 import { useSession } from "@/lib/auth-client";
 import { signOut } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
@@ -35,6 +34,12 @@ export default function Navbar() {
     }
   };
 
+  // Generate avatar URL from user name
+  const getAvatarUrl = (name) => {
+    if (!name) return "https://ui-avatars.com/api/?name=User&background=0D9488&color=fff&size=100";
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0D9488&color=fff&size=100`;
+  };
+
   return (
     <nav className="sticky top-0 z-50 border-b border-gray-200 bg-white/70 backdrop-blur-xl">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -63,18 +68,17 @@ export default function Navbar() {
             <>
               <Link
                 href="/auth/signin"
-                className="text-sm font-medium text-gray-700 hover:text-black"
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-400 hover:bg-gray-50 hover:text-black"
               >
                 Sign In
               </Link>
 
-              <Button
-                as={Link}
+              <Link
                 href="/auth/signup"
-                className="bg-black text-white"
+                className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800"
               >
                 Get Started
-              </Button>
+              </Link>
             </>
           ) : (
             <div className="relative">
@@ -82,6 +86,14 @@ export default function Navbar() {
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-black transition group"
               >
+                {/* User Avatar */}
+                <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-emerald-200 flex-shrink-0">
+                  <img
+                    src={getAvatarUrl(user.name)}
+                    alt={user.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
                 <span>Hi, {user.name}</span>
                 <svg
                   className={`w-4 h-4 transition-transform duration-200 ${
@@ -103,6 +115,23 @@ export default function Navbar() {
               {/* Dropdown Menu */}
               {isDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 overflow-hidden">
+                  {/* User Info in Dropdown */}
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-emerald-200 flex-shrink-0">
+                        <img
+                          src={getAvatarUrl(user.name)}
+                          alt={user.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900 text-sm">{user.name}</p>
+                        <p className="text-xs text-gray-500 truncate max-w-[120px]">{user.email}</p>
+                      </div>
+                    </div>
+                  </div>
+
                   <Link
                     href="/dashboard"
                     className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition"
@@ -206,24 +235,29 @@ export default function Navbar() {
               <div className="flex flex-col gap-3">
                 <Link
                   href="/auth/signin"
-                  className="text-sm font-medium text-gray-700 hover:text-black"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="rounded-lg border border-gray-300 px-3 py-2.5 text-center text-sm font-medium text-gray-700 transition hover:border-gray-400 hover:bg-gray-50 hover:text-black"
                 >
                   Sign In
                 </Link>
 
-                <Button
-                  as={Link}
+                <Link
                   href="/auth/signup"
-                  className="w-full bg-black text-white"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="w-full rounded-lg bg-black px-4 py-2.5 text-center text-sm font-medium text-white transition hover:bg-gray-800"
                 >
                   Get Started
-                </Button>
+                </Link>
               </div>
             ) : (
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2 px-2 py-1.5 bg-gray-50 rounded-lg">
-                  <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-semibold">
-                    {user.name?.charAt(0).toUpperCase()}
+                  <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-emerald-200 flex-shrink-0">
+                    <img
+                      src={getAvatarUrl(user.name)}
+                      alt={user.name}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-900">{user.name}</p>

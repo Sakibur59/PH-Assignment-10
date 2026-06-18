@@ -1,11 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Card, Button, Link, TextField, Label, Input } from "@heroui/react";
-
+import { Card, Button, Link, Label, Input } from "@heroui/react";
 import { Eye, EyeSlash, Briefcase, Bucket } from "@gravity-ui/icons";
-
-import { signUp } from "@/lib/auth-client";
+import { signIn, signUp } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 
@@ -16,9 +14,9 @@ export default function SignupForm({ redirectTo = "/auth/signin" }) {
   const [location, setLocation] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("buyer");
-
   const [isVisible, setIsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const router = useRouter();
 
@@ -50,6 +48,23 @@ export default function SignupForm({ redirectTo = "/auth/signin" }) {
     }
   };
 
+  // Google Sign-Up Handler
+ const handleGoogleSignUp = async () => {
+  try {
+    setIsGoogleLoading(true);
+
+    await signIn.social({
+      provider: "google",
+      callbackURL: "/",
+    });
+
+  } catch (error) {
+    console.error(error);
+    toast.error("Failed to continue with Google");
+  } finally {
+    setIsGoogleLoading(false);
+  }
+};
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-teal-50 px-4 py-12">
       <Card className="w-full max-w-md p-8 rounded-3xl border-0 bg-white/80 backdrop-blur-sm shadow-2xl shadow-emerald-100/50">
@@ -207,26 +222,30 @@ export default function SignupForm({ redirectTo = "/auth/signin" }) {
             <div className="flex-grow border-t border-gray-200"></div>
           </div>
 
-          {/* GOOGLE SIGN IN BUTTON */}
+          {/* GOOGLE SIGN UP BUTTON */}
           <Button
             type="button"
             variant="bordered"
+            isLoading={isGoogleLoading}
+            onPress={handleGoogleSignUp}
             className="h-12 w-full rounded-xl border-2 border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300 flex items-center justify-center gap-3 font-medium transition-all duration-200"
           >
-            <svg
-              className="h-5 w-5"
-              aria-hidden="true"
-              focusable="false"
-              role="img"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 488 512"
-            >
-              <path
-                fill="#4285F4"
-                d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"
-              ></path>
-            </svg>
-            Continue with Google
+            {!isGoogleLoading && (
+              <svg
+                className="h-5 w-5"
+                aria-hidden="true"
+                focusable="false"
+                role="img"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 488 512"
+              >
+                <path
+                  fill="#4285F4"
+                  d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"
+                ></path>
+              </svg>
+            )}
+            {isGoogleLoading ? "Redirecting to Google..." : "Continue with Google"}
           </Button>
 
           {/* FOOTER */}

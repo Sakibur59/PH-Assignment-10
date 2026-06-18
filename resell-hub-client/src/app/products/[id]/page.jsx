@@ -21,34 +21,46 @@ export default function ProductDetailsPage() {
   const [averageRating, setAverageRating] = useState(0);
   const [totalReviews, setTotalReviews] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [mainImage, setMainImage] = useState(""); // State for main image
+  const [mainImage, setMainImage] = useState("");
+
+  // Refresh product data function - MOVED HERE (inside component body)
+  const refreshProductData = async () => {
+    try {
+      const productsData = await getProducts();
+      if (productsData.success) {
+        const foundProduct = productsData.data.find(p => p._id === productId);
+        if (foundProduct) {
+          setProduct(foundProduct);
+          setAverageRating(foundProduct.averageRating || 0);
+          setTotalReviews(foundProduct.totalReviews || 0);
+        }
+      }
+    } catch (err) {
+      console.error("Error refreshing product data:", err);
+    }
+  };
 
   useEffect(() => {
     const fetchProductData = async () => {
       try {
         setLoading(true);
         
-        // Fetch all products
         const productsData = await getProducts();
         
         if (productsData.success) {
-          // Find the specific product
           const foundProduct = productsData.data.find(p => p._id === productId);
           
           if (foundProduct) {
             setProduct(foundProduct);
-            // Set main image to first image
             if (foundProduct.images && foundProduct.images.length > 0) {
               setMainImage(foundProduct.images[0]);
             }
             
-            // Get related products (same category, exclude current)
             const related = productsData.data
               .filter(p => p.category === foundProduct.category && p._id !== productId)
               .slice(0, 4);
             setRelatedProducts(related);
             
-            // Fetch reviews for this product
             try {
               const reviewsData = await getProductReviews(productId);
               if (reviewsData.success && reviewsData.data) {
@@ -79,7 +91,6 @@ export default function ProductDetailsPage() {
     }
   }, [productId]);
 
-  // Handle Buy Now - Stripe Payment
   const handleBuyNow = async () => {
     if (!product || product.status !== 'available') {
       return;
@@ -87,11 +98,8 @@ export default function ProductDetailsPage() {
 
     try {
       setIsProcessing(true);
-      
-      // TODO: Implement Stripe payment integration
       console.log("Processing payment for product:", productId);
       alert("Stripe payment integration will be implemented here!");
-      
     } catch (error) {
       console.error("Payment error:", error);
       alert("Payment failed. Please try again.");
@@ -100,12 +108,10 @@ export default function ProductDetailsPage() {
     }
   };
 
-  // Handle thumbnail click
   const handleThumbnailClick = (imageUrl) => {
     setMainImage(imageUrl);
   };
 
-  // Format price
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-BD', {
       style: 'currency',
@@ -115,7 +121,6 @@ export default function ProductDetailsPage() {
     }).format(price);
   };
 
-  // Loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -127,7 +132,6 @@ export default function ProductDetailsPage() {
     );
   }
 
-  // Error state
   if (error || !product) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -147,7 +151,6 @@ export default function ProductDetailsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Back Button */}
         <Link 
           href="/products" 
           className="inline-flex items-center text-emerald-600 hover:text-emerald-700 mb-6 transition-colors"
@@ -158,9 +161,7 @@ export default function ProductDetailsPage() {
           Back to Products
         </Link>
 
-        {/* Product Details */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Product Image */}
           <div className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100">
             <div className="relative h-96">
               {mainImage ? (
@@ -186,7 +187,6 @@ export default function ProductDetailsPage() {
               </div>
             </div>
             
-            {/* Thumbnail Images */}
             {product.images && product.images.length > 1 && (
               <div className="p-4 flex gap-2 overflow-x-auto">
                 {product.images.map((img, index) => (
@@ -210,7 +210,6 @@ export default function ProductDetailsPage() {
             )}
           </div>
 
-          {/* Product Info */}
           <div className="space-y-6">
             <div>
               <div className="flex items-start justify-between">
@@ -229,7 +228,6 @@ export default function ProductDetailsPage() {
                 </span>
               </div>
               
-              {/* Rating */}
               <div className="flex items-center gap-2 mt-3">
                 <StarRating rating={averageRating || product.averageRating || 0} readonly size="md" />
                 <span className="text-sm text-gray-500">
@@ -238,12 +236,10 @@ export default function ProductDetailsPage() {
               </div>
             </div>
 
-            {/* Price */}
             <div className="text-3xl md:text-4xl font-bold text-emerald-600">
               {formatPrice(product.price)}
             </div>
 
-            {/* Description */}
             <div className="border-t border-gray-200 pt-4">
               <h3 className="font-semibold text-gray-900 mb-2">Description</h3>
               <p className="text-gray-600 leading-relaxed">
@@ -251,7 +247,6 @@ export default function ProductDetailsPage() {
               </p>
             </div>
 
-            {/* Seller Info */}
             {product.sellerInfo && (
               <div className="bg-gray-50 rounded-xl p-4">
                 <h3 className="font-semibold text-gray-900 mb-3">Seller Information</h3>
@@ -277,7 +272,6 @@ export default function ProductDetailsPage() {
               </div>
             )}
 
-            {/* Buy Now Button - Stripe Payment */}
             <div className="flex flex-col gap-3">
               {product.status === 'available' ? (
                 <Button
@@ -301,7 +295,6 @@ export default function ProductDetailsPage() {
                 </Button>
               )}
 
-              {/* Secure Payment Badge */}
               {product.status === 'available' && (
                 <div className="flex items-center justify-center gap-4 text-sm text-gray-500 bg-gray-50 px-4 py-3 rounded-lg">
                   <div className="flex items-center gap-2">
@@ -324,12 +317,14 @@ export default function ProductDetailsPage() {
           </div>
         </div>
 
-        {/* Reviews Section */}
+        {/* Reviews Section - UPDATED WITH onReviewChange */}
         <div className="mt-12">
-          <ReviewSection productId={productId} />
+          <ReviewSection 
+            productId={productId} 
+            onReviewChange={refreshProductData} 
+          />
         </div>
 
-        {/* Related Products */}
         {relatedProducts.length > 0 && (
           <div className="mt-16">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Related Products</h2>
@@ -344,7 +339,3 @@ export default function ProductDetailsPage() {
     </div>
   );
 }
-
-
-
-

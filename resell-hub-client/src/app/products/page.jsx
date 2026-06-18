@@ -1,12 +1,16 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Button, Input, Spinner } from "@heroui/react";
+import Link from "next/link";
 import { getProducts } from "@/lib/api/products";
 import ProductCard from "@/Components/Homepage/ProductCard";
 
 export default function ProductsPage() {
+  const searchParams = useSearchParams();
+  const categoryParam = searchParams.get("category");
+  
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,7 +18,7 @@ export default function ProductsPage() {
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState(categoryParam || "");
   const [selectedCondition, setSelectedCondition] = useState("");
   const [sortBy, setSortBy] = useState("newest");
 
@@ -24,6 +28,7 @@ export default function ProductsPage() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
+        setLoading(true);
         const data = await getProducts();
         if (data.success) {
           setProducts(data.data);
@@ -58,7 +63,7 @@ export default function ProductsPage() {
       );
     }
 
-    // Category filter
+    // Category filter - from URL or dropdown
     if (selectedCategory) {
       result = result.filter(p => p.category === selectedCategory);
     }
@@ -136,6 +141,11 @@ export default function ProductsPage() {
           <p className="text-white/90 text-lg">
             Discover amazing deals on pre-loved items
           </p>
+          {selectedCategory && (
+            <div className="mt-2 inline-block bg-white/20 rounded-full px-4 py-1 text-sm">
+              Category: <span className="font-semibold">{selectedCategory}</span>
+            </div>
+          )}
         </div>
       </section>
 
