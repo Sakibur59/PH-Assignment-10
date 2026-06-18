@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Button } from "@heroui/react";
-
+import { Button, Spinner } from "@heroui/react";
 
 import { getProducts } from "@/lib/api/products";
 import ProductCard from "./ProductCard";
@@ -42,20 +41,11 @@ export default function FeaturedProducts({ limit = 6 }) {
           </h2>
           <div className="h-6 w-24 bg-gray-200 rounded animate-pulse"></div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {[...Array(limit)].map((_, i) => (
-            <div
-              key={i}
-              className="bg-white rounded-xl shadow-sm animate-pulse"
-            >
-              <div className="h-48 bg-gray-200 rounded-t-xl"></div>
-              <div className="p-4 space-y-3">
-                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                <div className="h-6 bg-gray-200 rounded w-1/3"></div>
-              </div>
-            </div>
-          ))}
+        <div className="flex justify-center items-center py-20">
+          <div className="text-center">
+            <Spinner size="lg" color="success" />
+            <p className="mt-4 text-gray-500 text-sm">Loading amazing products...</p>
+          </div>
         </div>
       </section>
     );
@@ -65,7 +55,14 @@ export default function FeaturedProducts({ limit = 6 }) {
     return (
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center py-12">
+          <div className="text-red-500 text-5xl mb-4">😕</div>
           <p className="text-red-500 text-lg">{error}</p>
+          <Button
+            className="mt-4 bg-emerald-500 text-white hover:bg-emerald-600"
+            onClick={() => window.location.reload()}
+          >
+            Try Again
+          </Button>
         </div>
       </section>
     );
@@ -86,7 +83,9 @@ export default function FeaturedProducts({ limit = 6 }) {
           </Link>
         </div>
         <div className="text-center py-12">
+          <div className="text-gray-400 text-5xl mb-4">📦</div>
           <p className="text-gray-500 text-lg">No products available yet</p>
+          <p className="text-gray-400 text-sm mt-2">Check back soon for new listings</p>
         </div>
       </section>
     );
@@ -98,7 +97,7 @@ export default function FeaturedProducts({ limit = 6 }) {
         <h2 className="text-3xl font-bold text-gray-900">Featured Products</h2>
         <Link
           href="/products"
-          className="text-emerald-600 hover:text-emerald-700 font-semibold flex items-center gap-1"
+          className="text-emerald-600 hover:text-emerald-700 font-semibold flex items-center gap-1 transition-colors"
         >
           View All →
         </Link>

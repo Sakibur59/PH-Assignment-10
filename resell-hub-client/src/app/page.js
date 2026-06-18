@@ -18,7 +18,7 @@ export default function Home() {
     <MarketplaceStats></MarketplaceStats>
     <SustainabilityImpact></SustainabilityImpact>
     <TrustedSellers></TrustedSellers>
-    <Footer></Footer>
+    {/* <Footer></Footer> */}
    </div>
   );
 }
