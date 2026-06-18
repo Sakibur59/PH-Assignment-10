@@ -23,7 +23,7 @@ export default function Navbar() {
 
         {/* LOGO */}
         <Link href="/" className="text-2xl font-bold text-black z-10">
-          ReSell Hub
+          ReSell <span className="text-emerald-400">Hub</span>
         </Link>
 
         {/* DESKTOP NAV LINKS */}

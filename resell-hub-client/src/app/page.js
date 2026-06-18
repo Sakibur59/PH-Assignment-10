@@ -1,10 +1,11 @@
 import Footer from "@/Components/Footer";
-import Image from "next/image";
+import Banner from "@/Components/Homepage/Banner";
+
 
 export default function Home() {
   return (
    <div>
-    homepage
+    <Banner></Banner>
     <Footer></Footer>
    </div>
   );
