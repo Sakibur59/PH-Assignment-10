@@ -4,6 +4,8 @@ import FeaturedProducts from "@/Components/Homepage/FeaturedProducts";
 import MarketplaceStats from "@/Components/Homepage/MarketplaceStats";
 import PopularCategories from "@/Components/Homepage/PopularCategories";
 import SuccessStories from "@/Components/Homepage/SuccessStories";
+import SustainabilityImpact from "@/Components/Homepage/SustainabilityImpact";
+import TrustedSellers from "@/Components/Homepage/TrustedSellers";
 
 
 export default function Home() {
@@ -14,6 +16,8 @@ export default function Home() {
     <PopularCategories></PopularCategories>
     <SuccessStories></SuccessStories>
     <MarketplaceStats></MarketplaceStats>
+    <SustainabilityImpact></SustainabilityImpact>
+    <TrustedSellers></TrustedSellers>
     <Footer></Footer>
    </div>
   );

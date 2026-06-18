@@ -1,4 +1,3 @@
-// components/MarketplaceStats.jsx
 "use client";
 
 const StatCard = ({ icon, label, value, color }) => {
@@ -12,7 +11,7 @@ const StatCard = ({ icon, label, value, color }) => {
 };
 
 export default function MarketplaceStats() {
-  // Static data only
+
   const stats = {
     totalProducts: 1547,
     totalSellers: 892,
