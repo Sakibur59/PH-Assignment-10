@@ -6,7 +6,7 @@ import { Button } from "@heroui/react";
 
 
 import { getProducts } from "@/lib/api/products";
-import ProductCard from "../ProductCard";
+import ProductCard from "./ProductCard";
 
 export default function FeaturedProducts({ limit = 6 }) {
   const [products, setProducts] = useState([]);
