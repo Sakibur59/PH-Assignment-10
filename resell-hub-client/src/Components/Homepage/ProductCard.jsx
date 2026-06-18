@@ -57,7 +57,7 @@ export default function ProductCard({ product }) {
         </Link>
 
         {/* View Details Button */}
-        <Link href={`/product/${product._id}`} className="w-full">
+        <Link href={`/products/${product._id}`} className="w-full">
           <Button
             className="w-full bg-emerald-500 text-white hover:bg-emerald-600 transition-colors"
             size="sm"
