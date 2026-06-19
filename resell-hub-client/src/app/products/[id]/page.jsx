@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -7,7 +7,11 @@ import Link from "next/link";
 import { getProducts } from "@/lib/api/products";
 import { getProductReviews } from "@/lib/api/reviews";
 import { createOrder } from "@/lib/api/orders";
-import { addToWishlist, removeFromWishlist, checkWishlist } from "@/lib/api/wishlist";
+import {
+  addToWishlist,
+  removeFromWishlist,
+  checkWishlist,
+} from "@/lib/api/wishlist";
 import { useSession } from "@/lib/auth-client";
 import StarRating from "@/Components/StarRating";
 import ReviewSection from "@/Components/ReviewSection";
@@ -28,7 +32,7 @@ export default function ProductDetailsPage() {
   const [totalReviews, setTotalReviews] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [mainImage, setMainImage] = useState("");
-  
+
   // Wishlist state
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isWishlistLoading, setIsWishlistLoading] = useState(false);
@@ -75,7 +79,9 @@ export default function ProductDetailsPage() {
         const productsData = await getProducts();
 
         if (productsData.success) {
-          const foundProduct = productsData.data.find((p) => p._id === productId);
+          const foundProduct = productsData.data.find(
+            (p) => p._id === productId,
+          );
 
           if (foundProduct) {
             setProduct(foundProduct);
@@ -84,7 +90,10 @@ export default function ProductDetailsPage() {
             }
 
             const related = productsData.data
-              .filter((p) => p.category === foundProduct.category && p._id !== productId)
+              .filter(
+                (p) =>
+                  p.category === foundProduct.category && p._id !== productId,
+              )
               .slice(0, 4);
             setRelatedProducts(related);
 
@@ -92,7 +101,9 @@ export default function ProductDetailsPage() {
               const reviewsData = await getProductReviews(productId);
               if (reviewsData.success && reviewsData.data) {
                 const total = reviewsData.data.length;
-                const avg = reviewsData.data.reduce((sum, r) => sum + r.rating, 0) / total || 0;
+                const avg =
+                  reviewsData.data.reduce((sum, r) => sum + r.rating, 0) /
+                    total || 0;
                 setAverageRating(avg);
                 setTotalReviews(total);
               }
@@ -156,6 +167,8 @@ export default function ProductDetailsPage() {
   };
 
   // Handle Buy Now
+  // app/products/[id]/page.jsx - Update handleBuyNow function
+
   const handleBuyNow = async () => {
     if (!product || product.status !== "available") {
       toast.error("Product is not available");
@@ -176,11 +189,13 @@ export default function ProductDetailsPage() {
     try {
       setIsProcessing(true);
 
+      // Create order first
       const orderData = {
         userId: session.user.id,
         productId: productId,
         quantity: 1,
         paymentMethod: "stripe",
+        paymentStatus: "pending", 
         shippingAddress: {
           name: session.user.name,
           email: session.user.email,
@@ -191,20 +206,43 @@ export default function ProductDetailsPage() {
 
       const orderResponse = await createOrder(orderData);
 
-      if (orderResponse.success) {
-        toast.success("Order placed successfully! 🎉");
-        router.push(`/dashboard/orders/${orderResponse.data._id}`);
+      if (!orderResponse.success) {
+        toast.error(orderResponse.message || "Failed to create order");
+        return;
+      }
+
+      const orderId = orderResponse.data._id;
+
+      // Create Stripe Checkout Session
+      const stripeResponse = await fetch("/api/checkout_session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          productId: productId,
+          productTitle: product.title,
+          productPrice: product.price,
+          productImage: product.images?.[0] || null,
+          userId: session.user.id,
+          orderId: orderId,
+        }),
+      });
+
+      const stripeData = await stripeResponse.json();
+
+      if (stripeData.success && stripeData.url) {
+        window.location.href = stripeData.url;
       } else {
-        toast.error(orderResponse.message || "Failed to place order");
+        toast.error(stripeData.error || "Failed to create payment session");
       }
     } catch (error) {
-      console.error("Order error:", error);
-      toast.error("Failed to place order. Please try again.");
+      console.error("Payment error:", error);
+      toast.error("Failed to process payment. Please try again.");
     } finally {
       setIsProcessing(false);
     }
   };
-
   const handleThumbnailClick = (imageUrl) => {
     setMainImage(imageUrl);
   };
@@ -252,8 +290,18 @@ export default function ProductDetailsPage() {
           href="/products"
           className="inline-flex items-center text-emerald-600 hover:text-emerald-700 mb-6 transition-colors"
         >
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          <svg
+            className="w-5 h-5 mr-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M10 19l-7-7m0 0l7-7m-7 7h18"
+            />
           </svg>
           Back to Products
         </Link>
@@ -277,13 +325,17 @@ export default function ProductDetailsPage() {
               )}
               <div
                 className={`absolute top-4 right-4 px-3 py-1 rounded-full text-sm font-medium ${
-                  product.status === "available" ? "bg-emerald-500 text-white" : "bg-red-500 text-white"
+                  product.status === "available"
+                    ? "bg-emerald-500 text-white"
+                    : "bg-red-500 text-white"
                 }`}
               >
                 {product.status === "available" ? "Available" : "Sold"}
               </div>
               <div className="absolute bottom-4 left-4 px-3 py-1 rounded-full text-sm font-medium bg-black/70 text-white">
-                {product.stock > 0 ? `${product.stock} in stock` : "Out of Stock"}
+                {product.stock > 0
+                  ? `${product.stock} in stock`
+                  : "Out of Stock"}
               </div>
             </div>
 
@@ -329,7 +381,11 @@ export default function ProductDetailsPage() {
               </div>
 
               <div className="flex items-center gap-2 mt-3">
-                <StarRating rating={averageRating || product.averageRating || 0} readonly size="md" />
+                <StarRating
+                  rating={averageRating || product.averageRating || 0}
+                  readonly
+                  size="md"
+                />
                 <span className="text-sm text-gray-500">
                   ({totalReviews || product.totalReviews || 0} reviews)
                 </span>
@@ -349,23 +405,29 @@ export default function ProductDetailsPage() {
 
             {product.sellerInfo && (
               <div className="bg-gray-50 rounded-xl p-4">
-                <h3 className="font-semibold text-gray-900 mb-3">Seller Information</h3>
+                <h3 className="font-semibold text-gray-900 mb-3">
+                  Seller Information
+                </h3>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-semibold">
                       {product.sellerInfo.name?.charAt(0) || "U"}
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">{product.sellerInfo.name || "N/A"}</p>
+                      <p className="font-medium text-gray-900">
+                        {product.sellerInfo.name || "N/A"}
+                      </p>
                       <p className="text-xs text-gray-500">Member since 2024</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                     <p className="text-gray-600">
-                      <span className="font-medium">Email:</span> {product.sellerInfo.email || "N/A"}
+                      <span className="font-medium">Email:</span>{" "}
+                      {product.sellerInfo.email || "N/A"}
                     </p>
                     <p className="text-gray-600">
-                      <span className="font-medium">Phone:</span> {product.sellerInfo.phone || "N/A"}
+                      <span className="font-medium">Phone:</span>{" "}
+                      {product.sellerInfo.phone || "N/A"}
                     </p>
                   </div>
                 </div>
@@ -382,7 +444,12 @@ export default function ProductDetailsPage() {
                   className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-500 text-white hover:from-emerald-700 hover:to-teal-600 h-14 text-xl font-semibold shadow-lg shadow-emerald-200 rounded-xl"
                 >
                   <span className="flex items-center gap-3">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg
+                      className="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -437,7 +504,11 @@ export default function ProductDetailsPage() {
             {product.status === "available" && product.stock > 0 && (
               <div className="flex items-center justify-center gap-4 text-sm text-gray-500 bg-gray-50 px-4 py-3 rounded-lg">
                 <div className="flex items-center gap-2">
-                  <svg className="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+                  <svg
+                    className="w-5 h-5 text-emerald-500"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
                     <path
                       fillRule="evenodd"
                       d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
@@ -448,7 +519,11 @@ export default function ProductDetailsPage() {
                 </div>
                 <span className="text-gray-300">|</span>
                 <div className="flex items-center gap-2">
-                  <svg className="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+                  <svg
+                    className="w-5 h-5 text-emerald-500"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
                     <path
                       fillRule="evenodd"
                       d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9zM4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z"
@@ -463,15 +538,23 @@ export default function ProductDetailsPage() {
         </div>
 
         <div className="mt-12">
-          <ReviewSection productId={productId} onReviewChange={refreshProductData} />
+          <ReviewSection
+            productId={productId}
+            onReviewChange={refreshProductData}
+          />
         </div>
 
         {relatedProducts.length > 0 && (
           <div className="mt-16">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Related Products</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              Related Products
+            </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
               {relatedProducts.map((relatedProduct) => (
-                <ProductCard key={relatedProduct._id} product={relatedProduct} />
+                <ProductCard
+                  key={relatedProduct._id}
+                  product={relatedProduct}
+                />
               ))}
             </div>
           </div>
