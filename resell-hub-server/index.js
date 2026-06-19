@@ -23,10 +23,319 @@ async function run() {
     await client.connect();
     console.log("Connected to MongoDB!");
 
+    // backend index.js - এই অংশগুলি যোগ করুন
+
     const database = client.db(process.env.AUTH_DB_NAME);
     const productsCollection = database.collection("products");
     const usersCollection = database.collection("user");
     const reviewsCollection = database.collection("reviews");
+    const wishlistCollection = database.collection("wishlist"); 
+    const ordersCollection = database.collection("orders"); 
+    
+    //  WISHLIST API
+
+    // Add to wishlist
+    app.post("/api/wishlist", async (req, res) => {
+      try {
+        const { userId, productId } = req.body;
+
+        if (!userId || !productId) {
+          return res.status(400).json({
+            success: false,
+            message: "User ID and Product ID are required",
+          });
+        }
+
+        // Check if product exists
+        const product = await productsCollection.findOne({
+          _id: new ObjectId(productId),
+        });
+        if (!product) {
+          return res.status(404).json({
+            success: false,
+            message: "Product not found",
+          });
+        }
+
+        // Check if already in wishlist
+        const existing = await wishlistCollection.findOne({
+          userId: userId,
+          productId: productId,
+        });
+
+        if (existing) {
+          return res.status(400).json({
+            success: false,
+            message: "Product already in wishlist",
+          });
+        }
+
+        const wishlistData = {
+          userId: userId,
+          productId: productId,
+          createdAt: new Date().toISOString(),
+        };
+
+        const result = await wishlistCollection.insertOne(wishlistData);
+
+        res.status(201).json({
+          success: true,
+          message: "Added to wishlist",
+          data: {
+            _id: result.insertedId,
+            ...wishlistData,
+          },
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Failed to add to wishlist",
+          error: error.message,
+        });
+      }
+    });
+
+    // Remove from wishlist
+    app.delete("/api/wishlist", async (req, res) => {
+      try {
+        const { userId, productId } = req.body;
+
+        if (!userId || !productId) {
+          return res.status(400).json({
+            success: false,
+            message: "User ID and Product ID are required",
+          });
+        }
+
+        const result = await wishlistCollection.deleteOne({
+          userId: userId,
+          productId: productId,
+        });
+
+        if (result.deletedCount === 0) {
+          return res.status(404).json({
+            success: false,
+            message: "Wishlist item not found",
+          });
+        }
+
+        res.status(200).json({
+          success: true,
+          message: "Removed from wishlist",
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Failed to remove from wishlist",
+          error: error.message,
+        });
+      }
+    });
+
+    // Get user's wishlist
+    app.get("/api/wishlist/:userId", async (req, res) => {
+      try {
+        const { userId } = req.params;
+
+        const wishlist = await wishlistCollection
+          .find({ userId: userId })
+          .sort({ createdAt: -1 })
+          .toArray();
+
+        const wishlistWithProducts = await Promise.all(
+          wishlist.map(async (item) => {
+            const product = await productsCollection.findOne({
+              _id: new ObjectId(item.productId),
+            });
+            return {
+              ...item,
+              product: product,
+            };
+          }),
+        );
+
+        res.status(200).json({
+          success: true,
+          data: wishlistWithProducts,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Failed to fetch wishlist",
+          error: error.message,
+        });
+      }
+    });
+
+    // Check if product is in wishlist
+    app.get("/api/wishlist/check/:userId/:productId", async (req, res) => {
+      try {
+        const { userId, productId } = req.params;
+
+        const exists = await wishlistCollection.findOne({
+          userId: userId,
+          productId: productId,
+        });
+
+        res.status(200).json({
+          success: true,
+          inWishlist: !!exists,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Failed to check wishlist",
+          error: error.message,
+        });
+      }
+    });
+
+    // ORDERS API 
+
+    // Create order
+    app.post("/api/orders", async (req, res) => {
+      try {
+        const {
+          userId,
+          productId,
+          quantity,
+          paymentId,
+          paymentMethod,
+          shippingAddress,
+        } = req.body;
+
+        if (!userId || !productId) {
+          return res.status(400).json({
+            success: false,
+            message: "User ID and Product ID are required",
+          });
+        }
+
+        // Get product details
+        const product = await productsCollection.findOne({
+          _id: new ObjectId(productId),
+        });
+        if (!product) {
+          return res.status(404).json({
+            success: false,
+            message: "Product not found",
+          });
+        }
+
+        // Check stock
+        const qty = quantity || 1;
+        if (product.stock < qty) {
+          return res.status(400).json({
+            success: false,
+            message: "Insufficient stock",
+          });
+        }
+
+        // Generate order number
+        const orderCount = await ordersCollection.countDocuments();
+        const orderNumber = `ORDER-${String(orderCount + 1).padStart(4, "0")}`;
+
+        const orderData = {
+          orderId: orderNumber,
+          userId: userId,
+          productId: productId,
+          productDetails: {
+            title: product.title,
+            price: product.price,
+            image: product.images?.[0] || null,
+          },
+          sellerId: product.sellerInfo?.userId || null,
+          quantity: qty,
+          totalAmount: product.price * qty,
+          paymentStatus: paymentId ? "paid" : "pending",
+          paymentMethod: paymentMethod || "stripe",
+          paymentId: paymentId || null,
+          orderStatus: "confirmed",
+          shippingAddress: shippingAddress || {},
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        const result = await ordersCollection.insertOne(orderData);
+
+        // Update product stock
+        await productsCollection.updateOne(
+          { _id: new ObjectId(productId) },
+          {
+            $inc: { stock: -qty },
+            $set: {
+              status: product.stock - qty === 0 ? "sold" : "available",
+            },
+          },
+        );
+
+        res.status(201).json({
+          success: true,
+          message: "Order created successfully",
+          data: {
+            _id: result.insertedId,
+            ...orderData,
+          },
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Failed to create order",
+          error: error.message,
+        });
+      }
+    });
+
+    // Get user's orders
+    app.get("/api/orders/:userId", async (req, res) => {
+      try {
+        const { userId } = req.params;
+
+        const orders = await ordersCollection
+          .find({ userId: userId })
+          .sort({ createdAt: -1 })
+          .toArray();
+
+        res.status(200).json({
+          success: true,
+          data: orders,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Failed to fetch orders",
+          error: error.message,
+        });
+      }
+    });
+
+    // Get single order by ID
+    app.get("/api/orders/single/:orderId", async (req, res) => {
+      try {
+        const { orderId } = req.params;
+
+        const order = await ordersCollection.findOne({
+          _id: new ObjectId(orderId),
+        });
+        if (!order) {
+          return res.status(404).json({
+            success: false,
+            message: "Order not found",
+          });
+        }
+
+        res.status(200).json({
+          success: true,
+          data: order,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Failed to fetch order",
+          error: error.message,
+        });
+      }
+    });
 
     //ROOT ROUTE
     app.get("/", (req, res) => {
@@ -86,6 +395,7 @@ async function run() {
         });
       }
     });
+    
 
     // REVIEWS API
     // Get reviews for a product
@@ -273,8 +583,6 @@ async function run() {
         });
       }
     });
-
-
 
     // Delete a review
     app.delete("/api/reviews/:reviewId", async (req, res) => {
