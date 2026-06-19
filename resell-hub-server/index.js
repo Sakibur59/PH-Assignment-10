@@ -31,12 +31,12 @@ async function run() {
     const ordersCollection = database.collection("orders");
     const paymentsCollection = database.collection("payments");
 
-    // ROOT ROUTE 
+    // ROOT ROUTE
     app.get("/", (req, res) => {
       res.send("ReSell Hub API is running!");
     });
 
-    //PRODUCTS API 
+    //PRODUCTS API
     app.get("/api/products", async (req, res) => {
       try {
         const products = await productsCollection.find({}).toArray();
@@ -85,7 +85,7 @@ async function run() {
     });
 
     // ORDERS API
-    
+
     // Create order
     app.post("/api/orders", async (req, res) => {
       try {
@@ -156,7 +156,7 @@ async function run() {
             $set: {
               status: product.stock - qty === 0 ? "sold" : "available",
             },
-          }
+          },
         );
 
         res.status(201).json({
@@ -196,7 +196,7 @@ async function run() {
               ...order,
               productDetails: product || null,
             };
-          })
+          }),
         );
 
         res.status(200).json({
@@ -281,7 +281,10 @@ async function run() {
           });
         }
 
-        if (order.orderStatus === "shipped" || order.orderStatus === "delivered") {
+        if (
+          order.orderStatus === "shipped" ||
+          order.orderStatus === "delivered"
+        ) {
           return res.status(400).json({
             success: false,
             message: "Order cannot be cancelled after shipment",
@@ -302,14 +305,14 @@ async function run() {
               orderStatus: "cancelled",
               updatedAt: new Date().toISOString(),
             },
-          }
+          },
         );
 
         await productsCollection.updateOne(
           { _id: new ObjectId(order.productId) },
           {
             $inc: { stock: order.quantity },
-          }
+          },
         );
 
         res.status(200).json({
@@ -325,7 +328,7 @@ async function run() {
       }
     });
 
-    //  PAYMENTS API 
+    //  PAYMENTS API
 
     // Create payment record
     app.post("/api/payments", async (req, res) => {
@@ -379,7 +382,7 @@ async function run() {
               paymentId: transactionId,
               updatedAt: new Date().toISOString(),
             },
-          }
+          },
         );
 
         res.status(201).json({
@@ -455,11 +458,13 @@ async function run() {
               amount: order.totalAmount,
               paymentMethod: order.paymentMethod || "stripe",
               paymentStatus: order.paymentStatus || "paid",
-              productTitle: product?.title || order.productDetails?.title || "N/A",
-              productImage: product?.images?.[0] || order.productDetails?.image || null,
+              productTitle:
+                product?.title || order.productDetails?.title || "N/A",
+              productImage:
+                product?.images?.[0] || order.productDetails?.image || null,
               createdAt: order.createdAt,
             };
-          })
+          }),
         );
 
         res.status(200).json({
@@ -475,7 +480,7 @@ async function run() {
       }
     });
 
-    // WISHLIST API 
+    // WISHLIST API
     //  WISHLIST API
 
     // Add to wishlist
@@ -634,8 +639,8 @@ async function run() {
       }
     });
 
-    //  REVIEWS API 
-      // Get reviews for a product
+    //  REVIEWS API
+    // Get reviews for a product
     app.get("/api/reviews/:productId", async (req, res) => {
       try {
         const { productId } = req.params;
@@ -904,7 +909,9 @@ async function run() {
       }
     });
 
-    // USERS API 
+    //USERS API
+    
+    // Get all users
     app.get("/api/users", async (req, res) => {
       try {
         const users = await usersCollection.find({}).toArray();
@@ -916,6 +923,108 @@ async function run() {
         res.status(500).json({
           success: false,
           message: "Failed to fetch users",
+          error: error.message,
+        });
+      }
+    });
+
+    // Get single user by ID
+    app.get("/api/users/:userId", async (req, res) => {
+      try {
+        const { userId } = req.params;
+
+        if (!ObjectId.isValid(userId)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid user ID",
+          });
+        }
+
+        const user = await usersCollection.findOne({
+          _id: new ObjectId(userId),
+        });
+
+        if (!user) {
+          return res.status(404).json({
+            success: false,
+            message: "User not found",
+          });
+        }
+
+        res.status(200).json({
+          success: true,
+          data: user,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Failed to fetch user",
+          error: error.message,
+        });
+      }
+    });
+
+    // Update user profile
+    app.put("/api/users/:userId", async (req, res) => {
+      try {
+        const { userId } = req.params;
+        const { name, phone, address } = req.body;
+
+        if (!ObjectId.isValid(userId)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid user ID",
+          });
+        }
+
+      
+        const existingUser = await usersCollection.findOne({
+          _id: new ObjectId(userId),
+        });
+
+        if (!existingUser) {
+          return res.status(404).json({
+            success: false,
+            message: "User not found",
+          });
+        }
+
+        // Update user
+        const updateData = {
+          $set: {
+            name: name || existingUser.name,
+            phone: phone || existingUser.phone || "",
+            address: address || existingUser.address || "",
+            updatedAt: new Date().toISOString(),
+          },
+        };
+
+        const result = await usersCollection.updateOne(
+          { _id: new ObjectId(userId) },
+          updateData,
+        );
+
+        if (result.matchedCount === 0) {
+          return res.status(404).json({
+            success: false,
+            message: "User not found",
+          });
+        }
+
+        // Get updated user
+        const updatedUser = await usersCollection.findOne({
+          _id: new ObjectId(userId),
+        });
+
+        res.status(200).json({
+          success: true,
+          message: "Profile updated successfully",
+          data: updatedUser,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Failed to update profile",
           error: error.message,
         });
       }
