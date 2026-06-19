@@ -23,17 +23,68 @@ import {
 import toast from "react-hot-toast";
 import { signOut } from "@/lib/auth-client";
 
+// Unauthorized Access Component
+function UnauthorizedAccess() {
+  const router = useRouter();
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+        <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg
+            className="w-10 h-10 text-red-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
+          </svg>
+        </div>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
+        <p className="text-gray-600 mb-6">
+          You don't have permission to access this page. This area is restricted
+          to
+          <span className="font-semibold text-gray-800">
+            {" "}
+            specific user roles
+          </span>
+          .
+        </p>
+        <div className="space-y-3">
+          <button
+            onClick={() => router.back()}
+            className="w-full bg-gray-200 text-gray-700 hover:bg-gray-300 px-4 py-2.5 rounded-lg transition"
+          >
+            Go Back
+          </button>
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="w-full bg-emerald-500 text-white hover:bg-emerald-600 px-4 py-2.5 rounded-lg transition"
+          >
+            Go to Dashboard
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardLayout({ children }) {
   const { data: session, isPending } = useSession();
   const router = useRouter();
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [userRole, setUserRole] = useState("buyer");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthorized, setIsAuthorized] = useState(true);
 
   useEffect(() => {
-   
     console.log("isPending:", isPending, "Session:", session);
-
 
     if (isPending) {
       return;
@@ -45,11 +96,45 @@ export default function DashboardLayout({ children }) {
       return;
     }
 
-    if (session?.user?.role) {
-      setUserRole(session.user.role);
-    }
-  }, [session, isPending, router]);
+    const role = session.user?.role || "buyer";
+    setUserRole(role);
 
+    const path = pathname || "";
+
+    // Role-based access logic
+    let authorized = false;
+
+    if (role === "admin") {
+      authorized = path === "/dashboard" || path.startsWith("/dashboard/admin");
+    } else if (role === "buyer") {
+      authorized = path === "/dashboard" || path.startsWith("/dashboard/buyer");
+    } else if (role === "seller") {
+      authorized =
+        path === "/dashboard" || path.startsWith("/dashboard/seller");
+    }
+
+    console.log(
+      "👤 Role:",
+      role,
+      "📍 Path:",
+      path,
+      "✅ Authorized:",
+      authorized,
+    );
+
+    if (authorized) {
+      setIsAuthorized(true);
+    } else {
+      setIsAuthorized(false);
+    }
+
+    setIsLoading(false);
+  }, [session, isPending, router, pathname]);
+
+  // Show unauthorized page
+  if (!isAuthorized && !isLoading) {
+    return <UnauthorizedAccess />;
+  }
 
   const getNavItems = () => {
     const baseItems = [
@@ -63,24 +148,88 @@ export default function DashboardLayout({ children }) {
 
     const roleSpecific = {
       buyer: [
-        { label: "My Orders", href: "/dashboard/buyer/orders", icon: ShoppingBag, roles: ["buyer"] },
-        { label: "Wishlist", href: "/dashboard/buyer/wishlist", icon: Heart, roles: ["buyer"] },
-        { label: "Payment History", href: "/dashboard/buyer/payments", icon: CreditCard, roles: ["buyer"] },
-        { label: "Profile", href: "/dashboard/buyer/profile", icon: User, roles: ["buyer"] },
+        {
+          label: "My Orders",
+          href: "/dashboard/buyer/orders",
+          icon: ShoppingBag,
+          roles: ["buyer"],
+        },
+        {
+          label: "Wishlist",
+          href: "/dashboard/buyer/wishlist",
+          icon: Heart,
+          roles: ["buyer"],
+        },
+        {
+          label: "Payment History",
+          href: "/dashboard/buyer/payments",
+          icon: CreditCard,
+          roles: ["buyer"],
+        },
+        {
+          label: "Profile",
+          href: "/dashboard/buyer/profile",
+          icon: User,
+          roles: ["buyer"],
+        },
       ],
       seller: [
-        { label: "Add Product", href: "/dashboard/seller/add-product", icon: PlusCircle, roles: ["seller"] },
-        { label: "My Products", href: "/dashboard/seller/my-products", icon: Package, roles: ["seller"] },
-        { label: "Manage Orders", href: "/dashboard/seller/manage-orders", icon: ClipboardList, roles: ["seller"] },
-        { label: "Sales Analytics", href: "/dashboard/seller/sales-analytics", icon: BarChart3, roles: ["seller"] },
-        { label: "Profile", href: "/dashboard/seller/profile", icon: User, roles: ["seller"] },
+        {
+          label: "Add Product",
+          href: "/dashboard/seller/add-product",
+          icon: PlusCircle,
+          roles: ["seller"],
+        },
+        {
+          label: "My Products",
+          href: "/dashboard/seller/my-products",
+          icon: Package,
+          roles: ["seller"],
+        },
+        {
+          label: "Manage Orders",
+          href: "/dashboard/seller/manage-orders",
+          icon: ClipboardList,
+          roles: ["seller"],
+        },
+        {
+          label: "Sales Analytics",
+          href: "/dashboard/seller/sales-analytics",
+          icon: BarChart3,
+          roles: ["seller"],
+        },
+        {
+          label: "Profile",
+          href: "/dashboard/seller/profile",
+          icon: User,
+          roles: ["seller"],
+        },
       ],
       admin: [
-        { label: "Manage Users", href: "/dashboard/admin/manage-users", icon: Users, roles: ["admin"] },
-        { label: "Manage Products", href: "/dashboard/admin/manage-products", icon: Package, roles: ["admin"] },
-        { label: "Manage Orders", href: "/dashboard/admin/manage-orders", icon: ClipboardList, roles: ["admin"] },
-        { label: "Platform Analytics", href: "/dashboard/admin/platform-analytics", icon: TrendingUp, roles: ["admin"] },
-        { label: "Profile", href: "/dashboard/admin/profile", icon: User, roles: ["admin"] },
+        {
+          label: "Manage Users",
+          href: "/dashboard/admin/manage-users",
+          icon: Users,
+          roles: ["admin"],
+        },
+        {
+          label: "Manage Products",
+          href: "/dashboard/admin/manage-products",
+          icon: Package,
+          roles: ["admin"],
+        },
+        {
+          label: "Manage Orders",
+          href: "/dashboard/admin/manage-orders",
+          icon: ClipboardList,
+          roles: ["admin"],
+        },
+        {
+          label: "Platform Analytics",
+          href: "/dashboard/admin/platform-analytics",
+          icon: TrendingUp,
+          roles: ["admin"],
+        },
       ],
     };
 
@@ -117,8 +266,8 @@ export default function DashboardLayout({ children }) {
     }
   };
 
-
-  if (isPending) {
+  // Loading state
+  if (isPending || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -128,7 +277,6 @@ export default function DashboardLayout({ children }) {
       </div>
     );
   }
-
 
   if (!session?.user) {
     return null;
@@ -145,16 +293,22 @@ export default function DashboardLayout({ children }) {
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className="p-2 rounded-lg hover:bg-gray-100"
         >
-          {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          {isMobileMenuOpen ? (
+            <X className="w-6 h-6" />
+          ) : (
+            <Menu className="w-6 h-6" />
+          )}
         </button>
       </div>
 
       {/* Sidebar */}
-      <aside className={`
+      <aside
+        className={`
         fixed top-0 left-0 z-40 h-full w-64 bg-white border-r border-gray-200 transition-transform duration-300
         ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
         lg:translate-x-0
-      `}>
+      `}
+      >
         <div className="hidden lg:flex items-center h-16 px-6 border-b border-gray-200">
           <Link href="/" className="text-xl font-bold text-black">
             ReSell <span className="text-emerald-400">Hub</span>
@@ -177,11 +331,15 @@ export default function DashboardLayout({ children }) {
               <p className="text-xs text-gray-500 truncate">
                 {session.user.email}
               </p>
-              <span className={`inline-block text-[10px] font-medium px-2 py-0.5 rounded-full mt-0.5 ${
-                userRole === "seller" ? "bg-amber-100 text-amber-700" :
-                userRole === "admin" ? "bg-purple-100 text-purple-700" :
-                "bg-blue-100 text-blue-700"
-              }`}>
+              <span
+                className={`inline-block text-[10px] font-medium px-2 py-0.5 rounded-full mt-0.5 ${
+                  userRole === "seller"
+                    ? "bg-amber-100 text-amber-700"
+                    : userRole === "admin"
+                      ? "bg-purple-100 text-purple-700"
+                      : "bg-blue-100 text-blue-700"
+                }`}
+              >
                 {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
               </span>
             </div>
@@ -199,13 +357,16 @@ export default function DashboardLayout({ children }) {
                 onClick={() => setIsMobileMenuOpen(false)}
                 className={`
                   flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200
-                  ${active 
-                    ? "bg-emerald-50 text-emerald-600 font-medium" 
-                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                  ${
+                    active
+                      ? "bg-emerald-50 text-emerald-600 font-medium"
+                      : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                   }
                 `}
               >
-                <Icon className={`w-5 h-5 ${active ? "text-emerald-500" : "text-gray-400"}`} />
+                <Icon
+                  className={`w-5 h-5 ${active ? "text-emerald-500" : "text-gray-400"}`}
+                />
                 <span className="text-sm">{item.label}</span>
                 {active && (
                   <div className="ml-auto w-1 h-8 bg-emerald-500 rounded-full" />
@@ -224,11 +385,13 @@ export default function DashboardLayout({ children }) {
         </nav>
       </aside>
 
-      <main className={`
+      <main
+        className={`
         min-h-screen transition-all duration-300
         lg:ml-64
         ${isMobileMenuOpen ? "blur-sm" : ""}
-      `}>
+      `}
+      >
         <div className="h-16 lg:hidden" />
         <div className="p-4 sm:p-6 lg:p-8">{children}</div>
       </main>
