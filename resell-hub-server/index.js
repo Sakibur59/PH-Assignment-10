@@ -23,8 +23,6 @@ async function run() {
     await client.connect();
     console.log("Connected to MongoDB!");
 
-  
-
     const database = client.db(process.env.AUTH_DB_NAME);
     const productsCollection = database.collection("products");
     const usersCollection = database.collection("user");
@@ -33,7 +31,301 @@ async function run() {
     const ordersCollection = database.collection("orders");
     const paymentsCollection = database.collection("payments");
 
-    //PAYMENTS API
+    // ROOT ROUTE 
+    app.get("/", (req, res) => {
+      res.send("ReSell Hub API is running!");
+    });
+
+    //PRODUCTS API 
+    app.get("/api/products", async (req, res) => {
+      try {
+        const products = await productsCollection.find({}).toArray();
+        res.status(200).json({
+          success: true,
+          data: products,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Failed to fetch products",
+          error: error.message,
+        });
+      }
+    });
+
+    app.get("/api/products/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid product ID",
+          });
+        }
+        const product = await productsCollection.findOne({
+          _id: new ObjectId(id),
+        });
+        if (!product) {
+          return res.status(404).json({
+            success: false,
+            message: "Product not found",
+          });
+        }
+        res.status(200).json({
+          success: true,
+          data: product,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Failed to fetch product",
+          error: error.message,
+        });
+      }
+    });
+
+    // ORDERS API
+    
+    // Create order
+    app.post("/api/orders", async (req, res) => {
+      try {
+        const {
+          userId,
+          productId,
+          quantity,
+          paymentMethod,
+          paymentStatus,
+          shippingAddress,
+        } = req.body;
+
+        if (!userId || !productId) {
+          return res.status(400).json({
+            success: false,
+            message: "User ID and Product ID are required",
+          });
+        }
+
+        const product = await productsCollection.findOne({
+          _id: new ObjectId(productId),
+        });
+        if (!product) {
+          return res.status(404).json({
+            success: false,
+            message: "Product not found",
+          });
+        }
+
+        const qty = quantity || 1;
+        if (product.stock < qty) {
+          return res.status(400).json({
+            success: false,
+            message: "Insufficient stock",
+          });
+        }
+
+        const orderCount = await ordersCollection.countDocuments();
+        const orderNumber = `ORDER-${String(orderCount + 1).padStart(4, "0")}`;
+
+        const orderData = {
+          orderId: orderNumber,
+          userId: userId,
+          productId: productId,
+          productDetails: {
+            title: product.title,
+            price: product.price,
+            image: product.images?.[0] || null,
+          },
+          sellerId: product.sellerInfo?.userId || null,
+          quantity: qty,
+          totalAmount: product.price * qty,
+          paymentStatus: paymentStatus || "pending",
+          paymentMethod: paymentMethod || "stripe",
+          paymentId: null,
+          orderStatus: "pending",
+          shippingAddress: shippingAddress || {},
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        const result = await ordersCollection.insertOne(orderData);
+
+        await productsCollection.updateOne(
+          { _id: new ObjectId(productId) },
+          {
+            $inc: { stock: -qty },
+            $set: {
+              status: product.stock - qty === 0 ? "sold" : "available",
+            },
+          }
+        );
+
+        res.status(201).json({
+          success: true,
+          message: "Order created successfully",
+          data: {
+            _id: result.insertedId,
+            ...orderData,
+          },
+        });
+      } catch (error) {
+        console.error("Order creation error:", error);
+        res.status(500).json({
+          success: false,
+          message: "Failed to create order",
+          error: error.message,
+        });
+      }
+    });
+
+    // Get user's orders with full details
+    app.get("/api/orders/user/:userId", async (req, res) => {
+      try {
+        const { userId } = req.params;
+
+        const orders = await ordersCollection
+          .find({ userId: userId })
+          .sort({ createdAt: -1 })
+          .toArray();
+
+        const ordersWithDetails = await Promise.all(
+          orders.map(async (order) => {
+            const product = await productsCollection.findOne({
+              _id: new ObjectId(order.productId),
+            });
+            return {
+              ...order,
+              productDetails: product || null,
+            };
+          })
+        );
+
+        res.status(200).json({
+          success: true,
+          data: ordersWithDetails,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Failed to fetch orders",
+          error: error.message,
+        });
+      }
+    });
+
+    // Get single order by ID with user verification
+    app.get("/api/orders/single/:orderId/:userId", async (req, res) => {
+      try {
+        const { orderId, userId } = req.params;
+
+        if (!ObjectId.isValid(orderId)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid order ID",
+          });
+        }
+
+        const order = await ordersCollection.findOne({
+          _id: new ObjectId(orderId),
+          userId: userId,
+        });
+
+        if (!order) {
+          return res.status(404).json({
+            success: false,
+            message: "Order not found",
+          });
+        }
+
+        const product = await productsCollection.findOne({
+          _id: new ObjectId(order.productId),
+        });
+
+        res.status(200).json({
+          success: true,
+          data: {
+            ...order,
+            productDetails: product || null,
+          },
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Failed to fetch order",
+          error: error.message,
+        });
+      }
+    });
+
+    //  Cancel order
+    app.patch("/api/orders/:orderId/cancel", async (req, res) => {
+      try {
+        const { orderId } = req.params;
+        const { userId } = req.body;
+
+        if (!ObjectId.isValid(orderId)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid order ID",
+          });
+        }
+
+        const order = await ordersCollection.findOne({
+          _id: new ObjectId(orderId),
+          userId: userId,
+        });
+
+        if (!order) {
+          return res.status(404).json({
+            success: false,
+            message: "Order not found",
+          });
+        }
+
+        if (order.orderStatus === "shipped" || order.orderStatus === "delivered") {
+          return res.status(400).json({
+            success: false,
+            message: "Order cannot be cancelled after shipment",
+          });
+        }
+
+        if (order.orderStatus === "cancelled") {
+          return res.status(400).json({
+            success: false,
+            message: "Order is already cancelled",
+          });
+        }
+
+        await ordersCollection.updateOne(
+          { _id: new ObjectId(orderId) },
+          {
+            $set: {
+              orderStatus: "cancelled",
+              updatedAt: new Date().toISOString(),
+            },
+          }
+        );
+
+        await productsCollection.updateOne(
+          { _id: new ObjectId(order.productId) },
+          {
+            $inc: { stock: order.quantity },
+          }
+        );
+
+        res.status(200).json({
+          success: true,
+          message: "Order cancelled successfully",
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Failed to cancel order",
+          error: error.message,
+        });
+      }
+    });
+
+    //  PAYMENTS API 
 
     // Create payment record
     app.post("/api/payments", async (req, res) => {
@@ -55,7 +347,6 @@ async function run() {
           });
         }
 
-        // Check if order exists
         const order = await ordersCollection.findOne({
           _id: new ObjectId(orderId),
         });
@@ -80,7 +371,6 @@ async function run() {
 
         const result = await paymentsCollection.insertOne(paymentData);
 
-        // Update order with payment reference
         await ordersCollection.updateOne(
           { _id: new ObjectId(orderId) },
           {
@@ -89,7 +379,7 @@ async function run() {
               paymentId: transactionId,
               updatedAt: new Date().toISOString(),
             },
-          },
+          }
         );
 
         res.status(201).json({
@@ -113,7 +403,6 @@ async function run() {
     app.get("/api/payments/:orderId", async (req, res) => {
       try {
         const { orderId } = req.params;
-
         const payment = await paymentsCollection.findOne({
           orderId: orderId,
         });
@@ -138,23 +427,40 @@ async function run() {
       }
     });
 
-    // Get payments by user (via orders)
+    // Get user's payments with product details
     app.get("/api/payments/user/:userId", async (req, res) => {
       try {
         const { userId } = req.params;
 
-        // Get all orders of the user
         const orders = await ordersCollection
-          .find({ userId: userId })
-          .toArray();
-
-        const orderIds = orders.map((order) => order._id.toString());
-
-        // Get payments for those orders
-        const payments = await paymentsCollection
-          .find({ orderId: { $in: orderIds } })
+          .find({
+            userId: userId,
+            paymentStatus: "paid",
+          })
           .sort({ createdAt: -1 })
           .toArray();
+
+        const payments = await Promise.all(
+          orders.map(async (order) => {
+            const payment = await paymentsCollection.findOne({
+              orderId: order._id.toString(),
+            });
+            const product = await productsCollection.findOne({
+              _id: new ObjectId(order.productId),
+            });
+            return {
+              _id: payment?._id || order._id,
+              orderId: order.orderId,
+              transactionId: payment?.transactionId || order.paymentId || "N/A",
+              amount: order.totalAmount,
+              paymentMethod: order.paymentMethod || "stripe",
+              paymentStatus: order.paymentStatus || "paid",
+              productTitle: product?.title || order.productDetails?.title || "N/A",
+              productImage: product?.images?.[0] || order.productDetails?.image || null,
+              createdAt: order.createdAt,
+            };
+          })
+        );
 
         res.status(200).json({
           success: true,
@@ -169,6 +475,7 @@ async function run() {
       }
     });
 
+    // WISHLIST API 
     //  WISHLIST API
 
     // Add to wishlist
@@ -327,214 +634,8 @@ async function run() {
       }
     });
 
-    // ORDERS API
-    
-    // Create order
-    app.post("/api/orders", async (req, res) => {
-      try {
-        const {
-          userId,
-          productId,
-          quantity,
-          paymentMethod,
-          paymentStatus, 
-          shippingAddress,
-        } = req.body;
-
-        if (!userId || !productId) {
-          return res.status(400).json({
-            success: false,
-            message: "User ID and Product ID are required",
-          });
-        }
-
-        // Get product details
-        const product = await productsCollection.findOne({
-          _id: new ObjectId(productId),
-        });
-        if (!product) {
-          return res.status(404).json({
-            success: false,
-            message: "Product not found",
-          });
-        }
-
-        // Check stock
-        const qty = quantity || 1;
-        if (product.stock < qty) {
-          return res.status(400).json({
-            success: false,
-            message: "Insufficient stock",
-          });
-        }
-
-        // Generate order number
-        const orderCount = await ordersCollection.countDocuments();
-        const orderNumber = `ORDER-${String(orderCount + 1).padStart(4, "0")}`;
-
-        const orderData = {
-          orderId: orderNumber,
-          userId: userId,
-          productId: productId,
-          productDetails: {
-            title: product.title,
-            price: product.price,
-            image: product.images?.[0] || null,
-          },
-          sellerId: product.sellerInfo?.userId || null,
-          quantity: qty,
-          totalAmount: product.price * qty,
-          paymentStatus: paymentStatus || "pending", 
-          paymentMethod: paymentMethod || "stripe",
-          paymentId: null,
-          orderStatus: "pending", 
-          shippingAddress: shippingAddress || {},
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-
-        const result = await ordersCollection.insertOne(orderData);
-
-        // Update product stock
-        await productsCollection.updateOne(
-          { _id: new ObjectId(productId) },
-          {
-            $inc: { stock: -qty },
-            $set: {
-              status: product.stock - qty === 0 ? "sold" : "available",
-            },
-          },
-        );
-
-        res.status(201).json({
-          success: true,
-          message: "Order created successfully",
-          data: {
-            _id: result.insertedId,
-            ...orderData,
-          },
-        });
-      } catch (error) {
-        console.error("Order creation error:", error);
-        res.status(500).json({
-          success: false,
-          message: "Failed to create order",
-          error: error.message,
-        });
-      }
-    });
-    // Get user's orders
-    app.get("/api/orders/:userId", async (req, res) => {
-      try {
-        const { userId } = req.params;
-
-        const orders = await ordersCollection
-          .find({ userId: userId })
-          .sort({ createdAt: -1 })
-          .toArray();
-
-        res.status(200).json({
-          success: true,
-          data: orders,
-        });
-      } catch (error) {
-        res.status(500).json({
-          success: false,
-          message: "Failed to fetch orders",
-          error: error.message,
-        });
-      }
-    });
-
-    // Get single order by ID
-    app.get("/api/orders/single/:orderId", async (req, res) => {
-      try {
-        const { orderId } = req.params;
-
-        const order = await ordersCollection.findOne({
-          _id: new ObjectId(orderId),
-        });
-        if (!order) {
-          return res.status(404).json({
-            success: false,
-            message: "Order not found",
-          });
-        }
-
-        res.status(200).json({
-          success: true,
-          data: order,
-        });
-      } catch (error) {
-        res.status(500).json({
-          success: false,
-          message: "Failed to fetch order",
-          error: error.message,
-        });
-      }
-    });
-
-    //ROOT ROUTE
-    app.get("/", (req, res) => {
-      res.send("ReSell Hub API is running!");
-    });
-
-    // PRODUCTS API
-    // Get all products
-    app.get("/api/products", async (req, res) => {
-      try {
-        const products = await productsCollection.find({}).toArray();
-        res.status(200).json({
-          success: true,
-          data: products,
-        });
-      } catch (error) {
-        res.status(500).json({
-          success: false,
-          message: "Failed to fetch products",
-          error: error.message,
-        });
-      }
-    });
-
-    // Get single product by ID
-    app.get("/api/products/:id", async (req, res) => {
-      try {
-        const { id } = req.params;
-
-        if (!ObjectId.isValid(id)) {
-          return res.status(400).json({
-            success: false,
-            message: "Invalid product ID",
-          });
-        }
-
-        const product = await productsCollection.findOne({
-          _id: new ObjectId(id),
-        });
-
-        if (!product) {
-          return res.status(404).json({
-            success: false,
-            message: "Product not found",
-          });
-        }
-
-        res.status(200).json({
-          success: true,
-          data: product,
-        });
-      } catch (error) {
-        res.status(500).json({
-          success: false,
-          message: "Failed to fetch product",
-          error: error.message,
-        });
-      }
-    });
-
-    // REVIEWS API
-    // Get reviews for a product
+    //  REVIEWS API 
+      // Get reviews for a product
     app.get("/api/reviews/:productId", async (req, res) => {
       try {
         const { productId } = req.params;
@@ -803,7 +904,7 @@ async function run() {
       }
     });
 
-    // USERS API
+    // USERS API 
     app.get("/api/users", async (req, res) => {
       try {
         const users = await usersCollection.find({}).toArray();
