@@ -1,17 +1,19 @@
+// app/dashboard/page.jsx
 "use client";
 
+import { useState, useEffect } from "react";
 import { useSession } from "@/lib/auth-client";
+import { getOrders } from "@/lib/api/orders";
+import { getWishlist } from "@/lib/api/wishlist";
+import { getUserPayments } from "@/lib/api/payments";
 import Link from "next/link";
+import { Spinner } from "@heroui/react";
 import { 
   ShoppingBag, 
   Heart, 
   CreditCard, 
   Package,
-  TrendingUp,
-  Users,
-  DollarSign,
-  PlusCircle,
-  ClipboardList,
+  ArrowRight,
   User
 } from "lucide-react";
 
@@ -19,60 +21,85 @@ export default function DashboardOverview() {
   const { data: session } = useSession();
   const user = session?.user;
   const role = user?.role || "buyer";
+  
+  const [stats, setStats] = useState({
+    totalOrders: 0,
+    wishlistCount: 0,
+    totalSpent: 0,
+    recentOrders: [],
+  });
+  const [loading, setLoading] = useState(true);
 
-  const getStats = () => {
-    const buyerStats = [
-      { label: "Total Orders", value: "0", icon: ShoppingBag, color: "bg-blue-500" },
-      { label: "Wishlist Items", value: "0", icon: Heart, color: "bg-red-500" },
-      { label: "Total Spent", value: "BDT 0", icon: CreditCard, color: "bg-green-500" },
-    ];
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const userId = session?.user?.id;
 
-    const sellerStats = [
-      { label: "Total Products", value: "0", icon: Package, color: "bg-purple-500" },
-      { label: "Total Orders", value: "0", icon: ShoppingBag, color: "bg-blue-500" },
-      { label: "Total Revenue", value: "BDT 0", icon: DollarSign, color: "bg-green-500" },
-    ];
+        // Fetch orders
+        const ordersData = await getOrders(userId);
+        const wishlistData = await getWishlist(userId);
+        const paymentsData = await getUserPayments(userId);
 
-    const adminStats = [
-      { label: "Total Users", value: "0", icon: Users, color: "bg-purple-500" },
-      { label: "Total Products", value: "0", icon: Package, color: "bg-blue-500" },
-      { label: "Total Orders", value: "0", icon: ShoppingBag, color: "bg-green-500" },
-      { label: "Total Revenue", value: "BDT 0", icon: TrendingUp, color: "bg-amber-500" },
-    ];
+        let orders = [];
+        if (ordersData.success) {
+          orders = ordersData.data || [];
+        }
 
-    if (role === "buyer") return buyerStats;
-    if (role === "seller") return sellerStats;
-    if (role === "admin") return adminStats;
-    return [];
-  };
+        let wishlist = [];
+        if (wishlistData.success) {
+          wishlist = wishlistData.data || [];
+        }
 
-  const getQuickActions = () => {
+        let payments = [];
+        if (paymentsData.success) {
+          payments = paymentsData.data || [];
+        }
+
+        // Calculate total spent
+        const totalSpent = payments.reduce((sum, p) => sum + p.amount, 0);
+
+        // Get recent orders (last 3)
+        const recentOrders = orders.slice(0, 3);
+
+        setStats({
+          totalOrders: orders.length,
+          wishlistCount: wishlist.length,
+          totalSpent: totalSpent,
+          recentOrders: recentOrders,
+        });
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (session?.user?.id) {
+      fetchDashboardData();
+    }
+  }, [session]);
+
+  const getStatsCards = () => {
     if (role === "buyer") {
       return [
-        { label: "My Orders", href: "/dashboard/buyer/orders", icon: ShoppingBag },
-        { label: "Wishlist", href: "/dashboard/buyer/wishlist", icon: Heart },
-        { label: "Payment History", href: "/dashboard/buyer/payments", icon: CreditCard },
-      ];
-    }
-    if (role === "seller") {
-      return [
-        { label: "Add Product", href: "/dashboard/seller/add-product", icon: PlusCircle },
-        { label: "My Products", href: "/dashboard/seller/my-products", icon: Package },
-        { label: "Manage Orders", href: "/dashboard/seller/manage-orders", icon: ClipboardList },
-      ];
-    }
-    if (role === "admin") {
-      return [
-        { label: "Manage Users", href: "/dashboard/admin/manage-users", icon: Users },
-        { label: "Manage Products", href: "/dashboard/admin/manage-products", icon: Package },
-        { label: "Manage Orders", href: "/dashboard/admin/manage-orders", icon: ClipboardList },
+        { label: "Total Orders", value: stats.totalOrders, icon: ShoppingBag, color: "bg-blue-500" },
+        { label: "Wishlist Items", value: stats.wishlistCount, icon: Heart, color: "bg-red-500" },
+        { label: "Total Spent", value: `BDT ${stats.totalSpent.toLocaleString()}`, icon: CreditCard, color: "bg-green-500" },
       ];
     }
     return [];
   };
 
-  const stats = getStats();
-  const quickActions = getQuickActions();
+  const statsCards = getStatsCards();
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Spinner color="success" />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -87,8 +114,9 @@ export default function DashboardOverview() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-8">
-        {stats.map((stat, index) => {
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+        {statsCards.map((stat, index) => {
           const Icon = stat.icon;
           return (
             <div
@@ -109,30 +137,100 @@ export default function DashboardOverview() {
         })}
       </div>
 
+      {/* Recent Orders */}
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {quickActions.map((action, index) => {
-            const Icon = action.icon;
-            return (
-              <Link
-                key={index}
-                href={action.href}
-                className="p-4 bg-gray-50 rounded-lg hover:bg-emerald-50 transition text-center"
-              >
-                <Icon className="w-6 h-6 mx-auto text-gray-600" />
-                <span className="text-sm text-gray-700 mt-2 block">{action.label}</span>
-              </Link>
-            );
-          })}
-          <Link
-            href="/dashboard/profile"
-            className="p-4 bg-gray-50 rounded-lg hover:bg-emerald-50 transition text-center"
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">Recent Orders</h2>
+          <Link 
+            href="/dashboard/buyer/orders" 
+            className="text-sm text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
           >
-            <User className="w-6 h-6 mx-auto text-gray-600" />
-            <span className="text-sm text-gray-700 mt-2 block">Profile</span>
+            View All <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
+
+        {stats.recentOrders.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <p>No orders yet</p>
+            <Link href="/products" className="text-emerald-600 hover:underline text-sm mt-2 inline-block">
+              Start Shopping
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {stats.recentOrders.map((order) => (
+              <Link
+                key={order._id}
+                href={`/dashboard/buyer/orders/${order._id}`}
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-emerald-50 transition"
+              >
+                <div className="flex items-center gap-3">
+                  {order.productDetails?.image ? (
+                    <img
+                      src={order.productDetails.image}
+                      alt={order.productDetails.title}
+                      className="w-12 h-12 rounded object-cover"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
+                      <Package className="w-6 h-6 text-gray-400" />
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-medium text-gray-900 text-sm">
+                      {order.productDetails?.title || "Product"}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(order.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-gray-900">BDT {order.totalAmount}</p>
+                  <span className={`inline-block text-xs px-2 py-0.5 rounded-full ${
+                    order.orderStatus === "delivered" ? "bg-green-100 text-green-700" :
+                    order.orderStatus === "cancelled" ? "bg-red-100 text-red-700" :
+                    "bg-yellow-100 text-yellow-700"
+                  }`}>
+                    {order.orderStatus}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Quick Actions */}
+      <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Link
+          href="/dashboard/buyer/orders"
+          className="p-4 bg-white rounded-xl border border-gray-100 hover:border-emerald-200 hover:shadow-md transition text-center"
+        >
+          <ShoppingBag className="w-6 h-6 mx-auto text-gray-600" />
+          <span className="text-sm text-gray-700 mt-2 block">My Orders</span>
+        </Link>
+        <Link
+          href="/dashboard/buyer/wishlist"
+          className="p-4 bg-white rounded-xl border border-gray-100 hover:border-emerald-200 hover:shadow-md transition text-center"
+        >
+          <Heart className="w-6 h-6 mx-auto text-gray-600" />
+          <span className="text-sm text-gray-700 mt-2 block">Wishlist</span>
+        </Link>
+        <Link
+          href="/dashboard/buyer/payments"
+          className="p-4 bg-white rounded-xl border border-gray-100 hover:border-emerald-200 hover:shadow-md transition text-center"
+        >
+          <CreditCard className="w-6 h-6 mx-auto text-gray-600" />
+          <span className="text-sm text-gray-700 mt-2 block">Payments</span>
+        </Link>
+        <Link
+          href="/dashboard/buyer/profile"
+          className="p-4 bg-white rounded-xl border border-gray-100 hover:border-emerald-200 hover:shadow-md transition text-center"
+        >
+          <User className="w-6 h-6 mx-auto text-gray-600" />
+          <span className="text-sm text-gray-700 mt-2 block">Profile</span>
+        </Link>
       </div>
     </div>
   );
