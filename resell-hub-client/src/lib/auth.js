@@ -7,7 +7,6 @@ const db = client.db(process.env.AUTH_DB_NAME);
 
 export const auth = betterAuth({
   database: mongodbAdapter(db, {
-    // Optional: if you don't provide a client, database transactions won't be enabled.
     client,
   }),
   emailAndPassword: {
@@ -16,7 +15,20 @@ export const auth = betterAuth({
   user: {
     additionalFields: {
       role: {
-        default: "buyer",
+        type: "string",
+        required: true,
+        defaultValue: "buyer",
+        input: true, 
+      },
+      phone: {
+        type: "string",
+        required: false,
+        input: true, 
+      },
+      location: {
+        type: "string",
+        required: false,
+        input: true, 
       },
     },
   },
@@ -24,14 +36,6 @@ export const auth = betterAuth({
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      mapProfileToUser: (profile) => {
-        return {
-          name: profile.name,
-          email: profile.email,
-          image: profile.picture,
-          role: "buyer", 
-        };
-      },
     },
   },
 });

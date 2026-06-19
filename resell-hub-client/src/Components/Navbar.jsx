@@ -16,6 +16,7 @@ export default function Navbar() {
   const pathname = usePathname(); 
 
   const user = session?.user;
+  const userRole = user?.role || "buyer";
 
   const navLinks = [
     { label: "Home", href: "/" },
@@ -48,18 +49,64 @@ export default function Navbar() {
     return pathname.startsWith(href);
   };
 
-
   const getUserRole = () => {
     if (!user?.role) return "User";
     return user.role.charAt(0).toUpperCase() + user.role.slice(1);
   };
 
-  
   const getRoleColor = () => {
     if (user?.role === "seller") return "bg-amber-100 text-amber-700";
     if (user?.role === "buyer") return "bg-blue-100 text-blue-700";
+    if (user?.role === "admin") return "bg-purple-100 text-purple-700";
     return "bg-gray-100 text-gray-700";
   };
+
+ 
+  const getProfilePath = () => {
+    if (userRole === "buyer") return "/dashboard/buyer/profile";
+    if (userRole === "seller") return "/dashboard/seller/profile";
+
+    return null;
+  };
+
+  const getDashboardPath = () => {
+    return "/dashboard";
+  };
+
+  const profilePath = getProfilePath();
+  const dashboardPath = getDashboardPath();
+
+
+  const getDropdownItems = () => {
+    const items = [];
+
+    items.push({
+      label: "Dashboard",
+      href: dashboardPath,
+      icon: (
+        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+        </svg>
+      )
+    });
+
+   
+    if (userRole === "buyer" || userRole === "seller") {
+      items.push({
+        label: "Profile",
+        href: profilePath,
+        icon: (
+          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+        )
+      });
+    }
+
+    return items;
+  };
+
+  const dropdownItems = getDropdownItems();
 
   return (
     <nav className="sticky top-0 z-50 border-b border-gray-200 bg-white/70 backdrop-blur-xl">
@@ -157,55 +204,21 @@ export default function Navbar() {
                     </div>
                   </div>
 
-                  <Link
-                    href="/dashboard"
-                    className={`flex items-center gap-2 px-4 py-2.5 text-sm transition ${
-                      isActive("/dashboard")
-                        ? "bg-emerald-50 text-emerald-600"
-                        : "text-gray-700 hover:bg-gray-50"
-                    }`}
-                    onClick={() => setIsDropdownOpen(false)}
-                  >
-                    <svg
-                      className="w-4 h-4 text-gray-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+                  {dropdownItems.map((item, index) => (
+                    <Link
+                      key={index}
+                      href={item.href}
+                      className={`flex items-center gap-2 px-4 py-2.5 text-sm transition ${
+                        isActive(item.href)
+                          ? "bg-emerald-50 text-emerald-600"
+                          : "text-gray-700 hover:bg-gray-50"
+                      }`}
+                      onClick={() => setIsDropdownOpen(false)}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-                      />
-                    </svg>
-                    Dashboard
-                  </Link>
-
-                  <Link
-                    href="/profile"
-                    className={`flex items-center gap-2 px-4 py-2.5 text-sm transition ${
-                      isActive("/profile")
-                        ? "bg-emerald-50 text-emerald-600"
-                        : "text-gray-700 hover:bg-gray-50"
-                    }`}
-                    onClick={() => setIsDropdownOpen(false)}
-                  >
-                    <svg
-                      className="w-4 h-4 text-gray-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                      />
-                    </svg>
-                    Profile
-                  </Link>
+                      {item.icon}
+                      {item.label}
+                    </Link>
+                  ))}
 
                   <div className="border-t border-gray-100 my-1"></div>
 
@@ -306,11 +319,12 @@ export default function Navbar() {
                   </div>
                 </div>
 
+         
                 <Link
-                  href="/dashboard"
+                  href={dashboardPath}
                   onClick={() => setIsMenuOpen(false)}
                   className={`px-4 py-2.5 text-sm transition rounded-lg ${
-                    isActive("/dashboard")
+                    isActive(dashboardPath)
                       ? "bg-emerald-50 text-emerald-600"
                       : "text-gray-700 hover:bg-gray-50"
                   }`}
@@ -318,17 +332,20 @@ export default function Navbar() {
                   Dashboard
                 </Link>
 
-                <Link
-                  href="/profile"
-                  onClick={() => setIsMenuOpen(false)}
-                  className={`px-4 py-2.5 text-sm transition rounded-lg ${
-                    isActive("/profile")
-                      ? "bg-emerald-50 text-emerald-600"
-                      : "text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  Profile
-                </Link>
+               
+                {(userRole === "buyer" || userRole === "seller") && profilePath && (
+                  <Link
+                    href={profilePath}
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`px-4 py-2.5 text-sm transition rounded-lg ${
+                      isActive(profilePath)
+                        ? "bg-emerald-50 text-emerald-600"
+                        : "text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    Profile
+                  </Link>
+                )}
 
                 <button
                   onClick={() => {
