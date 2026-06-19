@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation"; 
 import { useSession } from "@/lib/auth-client";
 import { signOut } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
@@ -12,6 +13,7 @@ export default function Navbar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const { data: session } = useSession();
   const router = useRouter();
+  const pathname = usePathname(); 
 
   const user = session?.user;
 
@@ -34,35 +36,58 @@ export default function Navbar() {
     }
   };
 
-  // Generate avatar URL from user name
   const getAvatarUrl = (name) => {
     if (!name) return "https://ui-avatars.com/api/?name=User&background=0D9488&color=fff&size=100";
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0D9488&color=fff&size=100`;
   };
 
+  const isActive = (href) => {
+    if (href === "/") {
+      return pathname === "/";
+    }
+    return pathname.startsWith(href);
+  };
+
+
+  const getUserRole = () => {
+    if (!user?.role) return "User";
+    return user.role.charAt(0).toUpperCase() + user.role.slice(1);
+  };
+
+  
+  const getRoleColor = () => {
+    if (user?.role === "seller") return "bg-amber-100 text-amber-700";
+    if (user?.role === "buyer") return "bg-blue-100 text-blue-700";
+    return "bg-gray-100 text-gray-700";
+  };
+
   return (
     <nav className="sticky top-0 z-50 border-b border-gray-200 bg-white/70 backdrop-blur-xl">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        {/* LOGO */}
         <Link href="/" className="text-2xl font-bold text-black z-10">
           ReSell <span className="text-emerald-400">Hub</span>
         </Link>
 
-        {/* DESKTOP NAV LINKS */}
         <ul className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-700 absolute left-1/2 -translate-x-1/2">
-          {navLinks.map((link) => (
-            <li key={link.href}>
-              <Link
-                href={link.href}
-                className="hover:text-black transition"
-              >
-                {link.label}
-              </Link>
-            </li>
-          ))}
+          {navLinks.map((link) => {
+            const active = isActive(link.href);
+            return (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  className={`transition ${
+                    active
+                      ? "text-emerald-600 font-bold border-b-2 border-emerald-500 pb-1"
+                      : "hover:text-black"
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              </li>
+            );
+          })}
         </ul>
 
-        {/* AUTH SECTION (DESKTOP) */}
         <div className="hidden md:flex items-center gap-3 z-10">
           {!user ? (
             <>
@@ -86,7 +111,6 @@ export default function Navbar() {
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-black transition group"
               >
-                {/* User Avatar */}
                 <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-emerald-200 flex-shrink-0">
                   <img
                     src={getAvatarUrl(user.name)}
@@ -112,10 +136,8 @@ export default function Navbar() {
                 </svg>
               </button>
 
-              {/* Dropdown Menu */}
               {isDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 overflow-hidden">
-                  {/* User Info in Dropdown */}
                   <div className="px-4 py-3 border-b border-gray-100">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-emerald-200 flex-shrink-0">
@@ -128,13 +150,20 @@ export default function Navbar() {
                       <div>
                         <p className="font-medium text-gray-900 text-sm">{user.name}</p>
                         <p className="text-xs text-gray-500 truncate max-w-[120px]">{user.email}</p>
+                        <span className={`inline-block text-[10px] font-medium px-2 py-0.5 rounded-full mt-0.5 ${getRoleColor()}`}>
+                          {getUserRole()}
+                        </span>
                       </div>
                     </div>
                   </div>
 
                   <Link
                     href="/dashboard"
-                    className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition"
+                    className={`flex items-center gap-2 px-4 py-2.5 text-sm transition ${
+                      isActive("/dashboard")
+                        ? "bg-emerald-50 text-emerald-600"
+                        : "text-gray-700 hover:bg-gray-50"
+                    }`}
                     onClick={() => setIsDropdownOpen(false)}
                   >
                     <svg
@@ -155,7 +184,11 @@ export default function Navbar() {
 
                   <Link
                     href="/profile"
-                    className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition"
+                    className={`flex items-center gap-2 px-4 py-2.5 text-sm transition ${
+                      isActive("/profile")
+                        ? "bg-emerald-50 text-emerald-600"
+                        : "text-gray-700 hover:bg-gray-50"
+                    }`}
                     onClick={() => setIsDropdownOpen(false)}
                   >
                     <svg
@@ -204,7 +237,6 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* MOBILE BUTTON */}
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           className="md:hidden p-2 z-10"
@@ -213,21 +245,27 @@ export default function Navbar() {
         </button>
       </div>
 
-      {/* MOBILE MENU */}
       {isMenuOpen && (
         <div className="md:hidden border-t bg-white px-4 py-4">
           <ul className="space-y-3">
-            {navLinks.map((link) => (
-              <li key={link.href}>
-                <Link
-                  href={link.href}
-                  onClick={() => setIsMenuOpen(false)}
-                  className="block text-gray-700"
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
+            {navLinks.map((link) => {
+              const active = isActive(link.href);
+              return (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`block transition ${
+                      active
+                        ? "text-emerald-600 font-bold"
+                        : "text-gray-700 hover:text-black"
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
 
           <div className="mt-4 border-t pt-4">
@@ -262,13 +300,20 @@ export default function Navbar() {
                   <div>
                     <p className="text-sm font-medium text-gray-900">{user.name}</p>
                     <p className="text-xs text-gray-500">{user.email}</p>
+                    <span className={`inline-block text-[10px] font-medium px-2 py-0.5 rounded-full mt-0.5 ${getRoleColor()}`}>
+                      {getUserRole()}
+                    </span>
                   </div>
                 </div>
 
                 <Link
                   href="/dashboard"
                   onClick={() => setIsMenuOpen(false)}
-                  className="px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition"
+                  className={`px-4 py-2.5 text-sm transition rounded-lg ${
+                    isActive("/dashboard")
+                      ? "bg-emerald-50 text-emerald-600"
+                      : "text-gray-700 hover:bg-gray-50"
+                  }`}
                 >
                   Dashboard
                 </Link>
@@ -276,7 +321,11 @@ export default function Navbar() {
                 <Link
                   href="/profile"
                   onClick={() => setIsMenuOpen(false)}
-                  className="px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition"
+                  className={`px-4 py-2.5 text-sm transition rounded-lg ${
+                    isActive("/profile")
+                      ? "bg-emerald-50 text-emerald-600"
+                      : "text-gray-700 hover:bg-gray-50"
+                  }`}
                 >
                   Profile
                 </Link>
