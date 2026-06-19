@@ -130,7 +130,7 @@ export default function BuyerOrders() {
                     )}
                     <div>
                       <Link 
-                        href={`/product/${order.productId}`}
+                        href={`/products/${order.productId}`}
                         className="font-semibold text-gray-900 hover:text-emerald-600 transition"
                       >
                         {order.productDetails?.title || "Product"}

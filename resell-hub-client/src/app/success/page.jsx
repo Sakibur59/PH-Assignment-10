@@ -137,7 +137,7 @@ export default async function Success({ searchParams }) {
             Transaction ID: <span className="font-mono">{payment_intent?.id || session_id}</span>
           </p>
           <div className="flex flex-col gap-3">
-            <Link href="/dashboard/orders">
+            <Link href="/dashboard/buyer/orders">
               <Button className="w-full bg-emerald-500 text-white hover:bg-emerald-600">
                 View My Orders
               </Button>
