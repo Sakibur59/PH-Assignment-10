@@ -23,15 +23,152 @@ async function run() {
     await client.connect();
     console.log("Connected to MongoDB!");
 
-    // backend index.js - এই অংশগুলি যোগ করুন
+  
 
     const database = client.db(process.env.AUTH_DB_NAME);
     const productsCollection = database.collection("products");
     const usersCollection = database.collection("user");
     const reviewsCollection = database.collection("reviews");
-    const wishlistCollection = database.collection("wishlist"); 
-    const ordersCollection = database.collection("orders"); 
-    
+    const wishlistCollection = database.collection("wishlist");
+    const ordersCollection = database.collection("orders");
+    const paymentsCollection = database.collection("payments");
+
+    //PAYMENTS API
+
+    // Create payment record
+    app.post("/api/payments", async (req, res) => {
+      try {
+        const {
+          orderId,
+          transactionId,
+          amount,
+          paymentMethod,
+          paymentStatus,
+          customerEmail,
+          customerName,
+        } = req.body;
+
+        if (!orderId || !transactionId || !amount) {
+          return res.status(400).json({
+            success: false,
+            message: "Order ID, Transaction ID, and Amount are required",
+          });
+        }
+
+        // Check if order exists
+        const order = await ordersCollection.findOne({
+          _id: new ObjectId(orderId),
+        });
+        if (!order) {
+          return res.status(404).json({
+            success: false,
+            message: "Order not found",
+          });
+        }
+
+        const paymentData = {
+          orderId: orderId,
+          transactionId: transactionId,
+          amount: amount,
+          paymentMethod: paymentMethod || "stripe",
+          paymentStatus: paymentStatus || "success",
+          customerEmail: customerEmail || null,
+          customerName: customerName || null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        const result = await paymentsCollection.insertOne(paymentData);
+
+        // Update order with payment reference
+        await ordersCollection.updateOne(
+          { _id: new ObjectId(orderId) },
+          {
+            $set: {
+              paymentStatus: paymentStatus || "success",
+              paymentId: transactionId,
+              updatedAt: new Date().toISOString(),
+            },
+          },
+        );
+
+        res.status(201).json({
+          success: true,
+          message: "Payment recorded successfully",
+          data: {
+            _id: result.insertedId,
+            ...paymentData,
+          },
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Failed to record payment",
+          error: error.message,
+        });
+      }
+    });
+
+    // Get payment by order ID
+    app.get("/api/payments/:orderId", async (req, res) => {
+      try {
+        const { orderId } = req.params;
+
+        const payment = await paymentsCollection.findOne({
+          orderId: orderId,
+        });
+
+        if (!payment) {
+          return res.status(404).json({
+            success: false,
+            message: "Payment not found",
+          });
+        }
+
+        res.status(200).json({
+          success: true,
+          data: payment,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Failed to fetch payment",
+          error: error.message,
+        });
+      }
+    });
+
+    // Get payments by user (via orders)
+    app.get("/api/payments/user/:userId", async (req, res) => {
+      try {
+        const { userId } = req.params;
+
+        // Get all orders of the user
+        const orders = await ordersCollection
+          .find({ userId: userId })
+          .toArray();
+
+        const orderIds = orders.map((order) => order._id.toString());
+
+        // Get payments for those orders
+        const payments = await paymentsCollection
+          .find({ orderId: { $in: orderIds } })
+          .sort({ createdAt: -1 })
+          .toArray();
+
+        res.status(200).json({
+          success: true,
+          data: payments,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Failed to fetch payments",
+          error: error.message,
+        });
+      }
+    });
+
     //  WISHLIST API
 
     // Add to wishlist
@@ -190,8 +327,8 @@ async function run() {
       }
     });
 
-    // ORDERS API 
-
+    // ORDERS API
+    
     // Create order
     app.post("/api/orders", async (req, res) => {
       try {
@@ -199,8 +336,8 @@ async function run() {
           userId,
           productId,
           quantity,
-          paymentId,
           paymentMethod,
+          paymentStatus, 
           shippingAddress,
         } = req.body;
 
@@ -247,10 +384,10 @@ async function run() {
           sellerId: product.sellerInfo?.userId || null,
           quantity: qty,
           totalAmount: product.price * qty,
-          paymentStatus: paymentId ? "paid" : "pending",
+          paymentStatus: paymentStatus || "pending", 
           paymentMethod: paymentMethod || "stripe",
-          paymentId: paymentId || null,
-          orderStatus: "confirmed",
+          paymentId: null,
+          orderStatus: "pending", 
           shippingAddress: shippingAddress || {},
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -278,6 +415,7 @@ async function run() {
           },
         });
       } catch (error) {
+        console.error("Order creation error:", error);
         res.status(500).json({
           success: false,
           message: "Failed to create order",
@@ -285,7 +423,6 @@ async function run() {
         });
       }
     });
-
     // Get user's orders
     app.get("/api/orders/:userId", async (req, res) => {
       try {
@@ -395,7 +532,6 @@ async function run() {
         });
       }
     });
-    
 
     // REVIEWS API
     // Get reviews for a product
