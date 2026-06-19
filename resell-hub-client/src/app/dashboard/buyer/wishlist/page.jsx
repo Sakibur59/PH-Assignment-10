@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -50,15 +49,21 @@ export default function BuyerWishlist() {
           <div className="text-5xl mb-4">❤️</div>
           <p className="text-lg font-medium">No items in wishlist</p>
           <p className="text-sm">Save your favorite items here</p>
-          <Link href="/products" className="mt-4 inline-block bg-emerald-500 text-white px-6 py-2 rounded-lg hover:bg-emerald-600">
+          <Link
+            href="/products"
+            className="mt-4 inline-block bg-emerald-500 text-white px-6 py-2 rounded-lg hover:bg-emerald-600"
+          >
             Browse Products
           </Link>
         </div>
       ) : (
         <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {wishlist.map((item) => (
-            item.product && <ProductCard key={item._id} product={item.product} />
-          ))}
+          {wishlist.map(
+            (item) =>
+              item.product && (
+                <ProductCard key={item._id} product={item.product} />
+              ),
+          )}
         </div>
       )}
     </div>
