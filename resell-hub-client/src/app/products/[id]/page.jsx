@@ -1,19 +1,25 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { Button, Card, Spinner } from "@heroui/react";
 import Link from "next/link";
 import { getProducts } from "@/lib/api/products";
 import { getProductReviews } from "@/lib/api/reviews";
+import { createOrder } from "@/lib/api/orders";
+import { addToWishlist, removeFromWishlist, checkWishlist } from "@/lib/api/wishlist";
+import { useSession } from "@/lib/auth-client";
 import StarRating from "@/Components/StarRating";
 import ReviewSection from "@/Components/ReviewSection";
 import ProductCard from "@/Components/Homepage/ProductCard";
+import toast from "react-hot-toast";
 
 export default function ProductDetailsPage() {
   const params = useParams();
+  const router = useRouter();
+  const { data: session } = useSession();
   const productId = params.id;
-  
+
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -22,13 +28,34 @@ export default function ProductDetailsPage() {
   const [totalReviews, setTotalReviews] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [mainImage, setMainImage] = useState("");
+  
+  // Wishlist state
+  const [isWishlisted, setIsWishlisted] = useState(false);
+  const [isWishlistLoading, setIsWishlistLoading] = useState(false);
 
-  // Refresh product data function - MOVED HERE (inside component body)
+  // Check wishlist status
+  useEffect(() => {
+    if (session?.user && productId) {
+      checkWishlistStatus();
+    }
+  }, [session, productId]);
+
+  const checkWishlistStatus = async () => {
+    try {
+      const data = await checkWishlist(session.user.id, productId);
+      if (data.success) {
+        setIsWishlisted(data.inWishlist);
+      }
+    } catch (error) {
+      console.error("Error checking wishlist:", error);
+    }
+  };
+
   const refreshProductData = async () => {
     try {
       const productsData = await getProducts();
       if (productsData.success) {
-        const foundProduct = productsData.data.find(p => p._id === productId);
+        const foundProduct = productsData.data.find((p) => p._id === productId);
         if (foundProduct) {
           setProduct(foundProduct);
           setAverageRating(foundProduct.averageRating || 0);
@@ -44,23 +71,23 @@ export default function ProductDetailsPage() {
     const fetchProductData = async () => {
       try {
         setLoading(true);
-        
+
         const productsData = await getProducts();
-        
+
         if (productsData.success) {
-          const foundProduct = productsData.data.find(p => p._id === productId);
-          
+          const foundProduct = productsData.data.find((p) => p._id === productId);
+
           if (foundProduct) {
             setProduct(foundProduct);
             if (foundProduct.images && foundProduct.images.length > 0) {
               setMainImage(foundProduct.images[0]);
             }
-            
+
             const related = productsData.data
-              .filter(p => p.category === foundProduct.category && p._id !== productId)
+              .filter((p) => p.category === foundProduct.category && p._id !== productId)
               .slice(0, 4);
             setRelatedProducts(related);
-            
+
             try {
               const reviewsData = await getProductReviews(productId);
               if (reviewsData.success && reviewsData.data) {
@@ -91,18 +118,88 @@ export default function ProductDetailsPage() {
     }
   }, [productId]);
 
+  // Handle Wishlist Toggle
+  const handleWishlistToggle = async () => {
+    if (!session?.user) {
+      toast.error("Please login to add to wishlist");
+      router.push("/auth/signin");
+      return;
+    }
+
+    setIsWishlistLoading(true);
+
+    try {
+      if (isWishlisted) {
+        const data = await removeFromWishlist({
+          userId: session.user.id,
+          productId: productId,
+        });
+        if (data.success) {
+          setIsWishlisted(false);
+          toast.success("Removed from wishlist");
+        }
+      } else {
+        const data = await addToWishlist({
+          userId: session.user.id,
+          productId: productId,
+        });
+        if (data.success) {
+          setIsWishlisted(true);
+          toast.success("Added to wishlist");
+        }
+      }
+    } catch (error) {
+      toast.error("Something went wrong");
+    } finally {
+      setIsWishlistLoading(false);
+    }
+  };
+
+  // Handle Buy Now
   const handleBuyNow = async () => {
-    if (!product || product.status !== 'available') {
+    if (!product || product.status !== "available") {
+      toast.error("Product is not available");
+      return;
+    }
+
+    if (product.stock < 1) {
+      toast.error("Product is out of stock");
+      return;
+    }
+
+    if (!session?.user) {
+      toast.error("Please login to purchase");
+      router.push("/auth/signin");
       return;
     }
 
     try {
       setIsProcessing(true);
-      console.log("Processing payment for product:", productId);
-      alert("Stripe payment integration will be implemented here!");
+
+      const orderData = {
+        userId: session.user.id,
+        productId: productId,
+        quantity: 1,
+        paymentMethod: "stripe",
+        shippingAddress: {
+          name: session.user.name,
+          email: session.user.email,
+          phone: session.user.phone || "",
+          address: "User address here",
+        },
+      };
+
+      const orderResponse = await createOrder(orderData);
+
+      if (orderResponse.success) {
+        toast.success("Order placed successfully! 🎉");
+        router.push(`/dashboard/orders/${orderResponse.data._id}`);
+      } else {
+        toast.error(orderResponse.message || "Failed to place order");
+      }
     } catch (error) {
-      console.error("Payment error:", error);
-      alert("Payment failed. Please try again.");
+      console.error("Order error:", error);
+      toast.error("Failed to place order. Please try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -113,11 +210,11 @@ export default function ProductDetailsPage() {
   };
 
   const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-BD', {
-      style: 'currency',
-      currency: 'BDT',
+    return new Intl.NumberFormat("en-BD", {
+      style: "currency",
+      currency: "BDT",
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      maximumFractionDigits: 0,
     }).format(price);
   };
 
@@ -151,8 +248,8 @@ export default function ProductDetailsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Link 
-          href="/products" 
+        <Link
+          href="/products"
           className="inline-flex items-center text-emerald-600 hover:text-emerald-700 mb-6 transition-colors"
         >
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -178,15 +275,18 @@ export default function ProductDetailsPage() {
                   </div>
                 </div>
               )}
-              <div className={`absolute top-4 right-4 px-3 py-1 rounded-full text-sm font-medium ${
-                product.status === 'available' 
-                  ? 'bg-emerald-500 text-white' 
-                  : 'bg-red-500 text-white'
-              }`}>
-                {product.status === 'available' ? 'Available' : 'Sold'}
+              <div
+                className={`absolute top-4 right-4 px-3 py-1 rounded-full text-sm font-medium ${
+                  product.status === "available" ? "bg-emerald-500 text-white" : "bg-red-500 text-white"
+                }`}
+              >
+                {product.status === "available" ? "Available" : "Sold"}
+              </div>
+              <div className="absolute bottom-4 left-4 px-3 py-1 rounded-full text-sm font-medium bg-black/70 text-white">
+                {product.stock > 0 ? `${product.stock} in stock` : "Out of Stock"}
               </div>
             </div>
-            
+
             {product.images && product.images.length > 1 && (
               <div className="p-4 flex gap-2 overflow-x-auto">
                 {product.images.map((img, index) => (
@@ -194,9 +294,9 @@ export default function ProductDetailsPage() {
                     key={index}
                     onClick={() => handleThumbnailClick(img)}
                     className={`w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
-                      mainImage === img 
-                        ? 'border-emerald-500 shadow-md' 
-                        : 'border-gray-200 hover:border-emerald-400'
+                      mainImage === img
+                        ? "border-emerald-500 shadow-md"
+                        : "border-gray-200 hover:border-emerald-400"
                     }`}
                   >
                     <img
@@ -217,7 +317,7 @@ export default function ProductDetailsPage() {
                   {product.title}
                 </h1>
               </div>
-              
+
               <div className="flex items-center gap-4 mt-2 flex-wrap">
                 <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
                   {product.category}
@@ -227,7 +327,7 @@ export default function ProductDetailsPage() {
                   {product.condition}
                 </span>
               </div>
-              
+
               <div className="flex items-center gap-2 mt-3">
                 <StarRating rating={averageRating || product.averageRating || 0} readonly size="md" />
                 <span className="text-sm text-gray-500">
@@ -272,16 +372,23 @@ export default function ProductDetailsPage() {
               </div>
             )}
 
-            <div className="flex flex-col gap-3">
-              {product.status === 'available' ? (
+            {/* ✅ Buy Now + Wishlist Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              {/* Buy Now Button */}
+              {product.status === "available" && product.stock > 0 ? (
                 <Button
                   onClick={handleBuyNow}
                   isLoading={isProcessing}
-                  className="w-full bg-gradient-to-r from-emerald-600 to-teal-500 text-white hover:from-emerald-700 hover:to-teal-600 h-14 text-xl font-semibold shadow-lg shadow-emerald-200 rounded-xl"
+                  className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-500 text-white hover:from-emerald-700 hover:to-teal-600 h-14 text-xl font-semibold shadow-lg shadow-emerald-200 rounded-xl"
                 >
                   <span className="flex items-center gap-3">
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                      />
                     </svg>
                     Buy Now - {formatPrice(product.price)}
                   </span>
@@ -289,40 +396,74 @@ export default function ProductDetailsPage() {
               ) : (
                 <Button
                   disabled
-                  className="w-full bg-gray-400 text-white h-14 text-xl font-semibold rounded-xl cursor-not-allowed"
+                  className="flex-1 bg-gray-400 text-white h-14 text-xl font-semibold rounded-xl cursor-not-allowed"
                 >
-                  Sold Out
+                  {product.stock === 0 ? "Out of Stock" : "Sold Out"}
                 </Button>
               )}
 
-              {product.status === 'available' && (
-                <div className="flex items-center justify-center gap-4 text-sm text-gray-500 bg-gray-50 px-4 py-3 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <svg className="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                    <span>Secure payment</span>
-                  </div>
-                  <span className="text-gray-300">|</span>
-                  <div className="flex items-center gap-2">
-                    <svg className="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
-                      <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
-                    </svg>
-                    <span>100% buyer protection</span>
-                  </div>
-                </div>
-              )}
+              {/* Wishlist Button */}
+              <Button
+                onClick={handleWishlistToggle}
+                isLoading={isWishlistLoading}
+                variant="bordered"
+                className={`h-14 px-6 rounded-xl border-2 transition-all duration-200 ${
+                  isWishlisted
+                    ? "border-red-500 bg-red-50 text-red-500 hover:bg-red-100"
+                    : "border-gray-300 text-gray-600 hover:border-red-400 hover:text-red-500"
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <svg
+                    className={`w-6 h-6 ${
+                      isWishlisted ? "fill-red-500 text-red-500" : "fill-none"
+                    }`}
+                    fill={isWishlisted ? "currentColor" : "none"}
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                    />
+                  </svg>
+                  {isWishlisted ? "Wishlisted" : "Add to Wishlist"}
+                </span>
+              </Button>
             </div>
+
+            {product.status === "available" && product.stock > 0 && (
+              <div className="flex items-center justify-center gap-4 text-sm text-gray-500 bg-gray-50 px-4 py-3 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                      fillRule="evenodd"
+                      d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <span>Secure payment</span>
+                </div>
+                <span className="text-gray-300">|</span>
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                      fillRule="evenodd"
+                      d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9zM4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <span>100% buyer protection</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Reviews Section - UPDATED WITH onReviewChange */}
         <div className="mt-12">
-          <ReviewSection 
-            productId={productId} 
-            onReviewChange={refreshProductData} 
-          />
+          <ReviewSection productId={productId} onReviewChange={refreshProductData} />
         </div>
 
         {relatedProducts.length > 0 && (
