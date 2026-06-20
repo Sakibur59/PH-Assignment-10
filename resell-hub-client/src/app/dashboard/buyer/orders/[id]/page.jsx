@@ -1,4 +1,3 @@
-// app/dashboard/buyer/orders/[id]/page.jsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -8,7 +7,7 @@ import { getOrderById, cancelOrder } from "@/lib/api/orders";
 import { Spinner, Card, Button } from "@heroui/react";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { Package } from "lucide-react";
+import { Package, AlertTriangle, X } from "lucide-react";
 
 const ORDER_STATUS_COLORS = {
   pending: "bg-yellow-100 text-yellow-700",
@@ -35,6 +34,7 @@ export default function OrderDetails() {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     fetchOrder();
@@ -57,14 +57,24 @@ export default function OrderDetails() {
     }
   };
 
+  const openCancelModal = () => {
+    setIsModalOpen(true);
+  };
+
+  const closeCancelModal = () => {
+    if (cancelling) return;
+    setIsModalOpen(false);
+  };
+
   const handleCancelOrder = async () => {
-    if (!confirm("Are you sure you want to cancel this order?")) return;
+    if (!order) return;
 
     try {
       setCancelling(true);
       const data = await cancelOrder(orderId, session?.user?.id);
       if (data.success) {
         toast.success("Order cancelled successfully");
+        setIsModalOpen(false);
         fetchOrder();
       } else {
         toast.error(data.message || "Failed to cancel order");
@@ -225,7 +235,7 @@ export default function OrderDetails() {
               color="danger"
               className="w-full bg-red-500 text-white hover:bg-red-600"
               isLoading={cancelling}
-              onClick={handleCancelOrder}
+              onClick={openCancelModal}
             >
               Cancel Order
             </Button>
@@ -238,6 +248,87 @@ export default function OrderDetails() {
           </Link>
         </div>
       </div>
+
+      {/* Cancel Confirmation Modal */}
+      {isModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={closeCancelModal}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-red-500" />
+                <h2 className="font-semibold text-gray-900">Cancel Order</h2>
+              </div>
+              <button
+                onClick={closeCancelModal}
+                className="p-1 rounded-full hover:bg-gray-100 disabled:opacity-50"
+                disabled={!!cancelling}
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-4">
+              <p className="text-gray-600">
+                Are you sure you want to cancel this order?
+              </p>
+
+              {order && (
+                <div className="bg-gray-50 rounded-lg p-3 mt-3 flex items-center gap-3">
+                  {order.productDetails?.image ? (
+                    <img
+                      src={order.productDetails.image}
+                      alt={order.productDetails.title}
+                      className="w-12 h-12 rounded object-cover"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
+                      <Package className="w-6 h-6 text-gray-400" />
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-medium text-gray-900 text-sm">
+                      {order.productDetails?.title || "Product"}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Order #{order.orderId}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <p className="text-xs text-gray-400 mt-3">
+                This action cannot be undone.
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
+              <Button
+                variant="light"
+                onClick={closeCancelModal}
+                isDisabled={!!cancelling}
+              >
+                No, Keep Order
+              </Button>
+              <Button
+                color="danger"
+                onClick={handleCancelOrder}
+                isLoading={cancelling}
+              >
+                Yes, Cancel Order
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
