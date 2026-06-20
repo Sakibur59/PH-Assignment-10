@@ -13,6 +13,7 @@ import {
   checkWishlist,
 } from "@/lib/api/wishlist";
 import { useSession } from "@/lib/auth-client";
+import { getUserById } from "@/lib/api/user";
 import StarRating from "@/Components/StarRating";
 import ReviewSection from "@/Components/ReviewSection";
 import ProductCard from "@/Components/Homepage/ProductCard";
@@ -32,10 +33,28 @@ export default function ProductDetailsPage() {
   const [totalReviews, setTotalReviews] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [mainImage, setMainImage] = useState("");
+  const [userData, setUserData] = useState(null);
 
   // Wishlist state
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isWishlistLoading, setIsWishlistLoading] = useState(false);
+
+  // Fetch user data from database
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (session?.user?.id) {
+        try {
+          const data = await getUserById(session.user.id);
+          if (data.success) {
+            setUserData(data.data);
+          }
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+        }
+      }
+    };
+    fetchUserData();
+  }, [session]);
 
   // Check wishlist status
   useEffect(() => {
@@ -167,8 +186,6 @@ export default function ProductDetailsPage() {
   };
 
   // Handle Buy Now
-  // app/products/[id]/page.jsx - Update handleBuyNow function
-
   const handleBuyNow = async () => {
     if (!product || product.status !== "available") {
       toast.error("Product is not available");
@@ -189,18 +206,19 @@ export default function ProductDetailsPage() {
     try {
       setIsProcessing(true);
 
-      // Create order first
+ 
       const orderData = {
         userId: session.user.id,
         productId: productId,
         quantity: 1,
         paymentMethod: "stripe",
-        paymentStatus: "pending", 
+        paymentStatus: "pending",
         shippingAddress: {
-          name: session.user.name,
-          email: session.user.email,
-          phone: session.user.phone || "",
-          address: "User address here",
+          name: userData?.name || session.user.name || "",
+          email: userData?.email || session.user.email || "",
+          phone: userData?.phone || "",
+          address: userData?.address || "",
+          location: userData?.location || "",
         },
       };
 
@@ -243,6 +261,7 @@ export default function ProductDetailsPage() {
       setIsProcessing(false);
     }
   };
+
   const handleThumbnailClick = (imageUrl) => {
     setMainImage(imageUrl);
   };
@@ -434,9 +453,8 @@ export default function ProductDetailsPage() {
               </div>
             )}
 
-            {/* ✅ Buy Now + Wishlist Buttons */}
+            {/* Buy Now + Wishlist Buttons */}
             <div className="flex flex-col sm:flex-row gap-3">
-              {/* Buy Now Button */}
               {product.status === "available" && product.stock > 0 ? (
                 <Button
                   onClick={handleBuyNow}
@@ -469,7 +487,6 @@ export default function ProductDetailsPage() {
                 </Button>
               )}
 
-              {/* Wishlist Button */}
               <Button
                 onClick={handleWishlistToggle}
                 isLoading={isWishlistLoading}

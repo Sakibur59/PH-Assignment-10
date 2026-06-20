@@ -19,6 +19,7 @@ export default function BuyerProfile() {
     name: user?.name || "",
     phone: user?.phone || "",
     address: user?.address || "",
+    location: user?.location || "", // ✅ location যোগ করুন
   });
   const [isFetching, setIsFetching] = useState(true);
 
@@ -44,6 +45,7 @@ export default function BuyerProfile() {
               name: userData.name || "",
               phone: userData.phone || "",
               address: userData.address || "",
+              location: userData.location || "", // ✅ location fetch করুন
             });
           }
         }
@@ -71,6 +73,7 @@ export default function BuyerProfile() {
         name: formData.name,
         phone: formData.phone,
         address: formData.address,
+        location: formData.location, // ✅ location পাঠান
       });
 
       if (response.success) {
@@ -191,6 +194,14 @@ export default function BuyerProfile() {
                 </p>
               </div>
             )}
+            {formData.location && (
+              <div className="mt-2">
+                <p className="text-sm text-gray-500">Location</p>
+                <p className="text-sm font-medium text-gray-700">
+                  {formData.location}
+                </p>
+              </div>
+            )}
             {formData.address && (
               <div className="mt-2">
                 <p className="text-sm text-gray-500">Address</p>
@@ -275,6 +286,21 @@ export default function BuyerProfile() {
                   />
                 </div>
 
+                {/*Location Field*/}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Location
+                  </label>
+                  <Input
+                    name="location"
+                    value={formData.location}
+                    onChange={handleChange}
+                    disabled={!isEditing}
+                    placeholder="Dhaka, Bangladesh"
+                    className="w-full"
+                  />
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Address
@@ -284,7 +310,7 @@ export default function BuyerProfile() {
                     value={formData.address}
                     onChange={handleChange}
                     disabled={!isEditing}
-                    placeholder="Dhaka, Bangladesh"
+                    placeholder="House 123, Road 4, Gulshan-1"
                     className="w-full"
                   />
                 </div>
@@ -307,6 +333,7 @@ export default function BuyerProfile() {
                           name: user?.name || "",
                           phone: user?.phone || "",
                           address: user?.address || "",
+                          location: user?.location || "",
                         });
                       }}
                     >

@@ -12,6 +12,7 @@ export default function SignupForm({ redirectTo = "/auth/signin" }) {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [location, setLocation] = useState("");
+  const [address, setAddress] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("buyer");
   const [isVisible, setIsVisible] = useState(false);
@@ -32,6 +33,7 @@ export default function SignupForm({ redirectTo = "/auth/signin" }) {
         role,
         phone,
         location,
+        address,
       });
 
       if (error) {
@@ -49,22 +51,21 @@ export default function SignupForm({ redirectTo = "/auth/signin" }) {
   };
 
   // Google Sign-Up Handler
- const handleGoogleSignUp = async () => {
-  try {
-    setIsGoogleLoading(true);
+  const handleGoogleSignUp = async () => {
+    try {
+      setIsGoogleLoading(true);
+      await signIn.social({
+        provider: "google",
+        callbackURL: "/",
+      });
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to continue with Google");
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
 
-    await signIn.social({
-      provider: "google",
-      callbackURL: "/",
-    });
-
-  } catch (error) {
-    console.error(error);
-    toast.error("Failed to continue with Google");
-  } finally {
-    setIsGoogleLoading(false);
-  }
-};
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-teal-50 px-4 py-12">
       <Card className="w-full max-w-md p-8 rounded-3xl border-0 bg-white/80 backdrop-blur-sm shadow-2xl shadow-emerald-100/50">
@@ -175,6 +176,19 @@ export default function SignupForm({ redirectTo = "/auth/signin" }) {
               onChange={(e) => setLocation(e.target.value)}
               className="mt-1.5 w-full rounded-xl border-gray-200 focus:border-emerald-400 transition-colors"
               placeholder="Dhaka, Bangladesh"
+              size="lg"
+            />
+          </div>
+
+          {/* ✅ ADDRESS - নতুন field */}
+          <div className="w-full">
+            <Label className="text-sm font-medium text-gray-600">Address</Label>
+            <Input
+              required
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className="mt-1.5 w-full rounded-xl border-gray-200 focus:border-emerald-400 transition-colors"
+              placeholder="House 123, Road 4, Gulshan-1"
               size="lg"
             />
           </div>
