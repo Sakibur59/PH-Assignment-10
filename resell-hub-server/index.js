@@ -968,7 +968,7 @@ async function run() {
     app.put("/api/users/:userId", async (req, res) => {
       try {
         const { userId } = req.params;
-        const { name, phone, address } = req.body;
+        const { name, phone, address,location } = req.body;
 
         if (!ObjectId.isValid(userId)) {
           return res.status(400).json({
@@ -994,6 +994,7 @@ async function run() {
             name: name || existingUser.name,
             phone: phone || existingUser.phone || "",
             address: address || existingUser.address || "",
+            location: location || existingUser.location || "",
             updatedAt: new Date().toISOString(),
           },
         };
@@ -1028,7 +1029,6 @@ async function run() {
         });
       }
     });
-    
  app.post("/api/products", async (req, res) => {
       try {
         const {
@@ -1116,47 +1116,54 @@ async function run() {
       }
     });
 
-    // Get seller's orders
-    app.get("/api/seller/orders/:userId", async (req, res) => {
-      try {
-        const { userId } = req.params;
+   // Get seller's orders
+app.get("/api/seller/orders/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
 
-        const orders = await ordersCollection
-          .find({ sellerId: userId })
-          .sort({ createdAt: -1 })
-          .toArray();
+    const orders = await ordersCollection
+      .find({ sellerId: userId })
+      .sort({ createdAt: -1 })
+      .toArray();
 
-        const ordersWithDetails = await Promise.all(
-          orders.map(async (order) => {
-            const product = await productsCollection.findOne({
-              _id: new ObjectId(order.productId),
-            });
-            const buyer = await usersCollection.findOne({
-              _id: new ObjectId(order.userId),
-            });
-            return {
-              ...order,
-              productDetails: product || null,
-              buyerInfo: buyer
-                ? { name: buyer.name, email: buyer.email }
-                : null,
-            };
-          }),
+    const ordersWithDetails = await Promise.all(
+      orders.map(async (order) => {
+        const product = await productsCollection.findOne({
+          _id: new ObjectId(order.productId),
+        });
+        const buyer = await usersCollection.findOne(
+          { _id: new ObjectId(order.userId) },
+          { projection: { name: 1, email: 1, phone: 1, address: 1, location: 1 } }
         );
+        return {
+          ...order,
+          productDetails: product || null,
+          buyerInfo: buyer
+            ? {
+                name: buyer.name,
+                email: buyer.email,
+                phone: buyer.phone || "N/A",
+                address: buyer.address || "N/A",
+                location: buyer.location || "N/A",
+              }
+            : null,
+        };
+      })
+    );
 
-        res.status(200).json({
-          success: true,
-          data: ordersWithDetails,
-        });
-      } catch (error) {
-        console.error("Error fetching seller orders:", error);
-        res.status(500).json({
-          success: false,
-          message: "Failed to fetch orders",
-          error: error.message,
-        });
-      }
+    res.status(200).json({
+      success: true,
+      data: ordersWithDetails,
     });
+  } catch (error) {
+    console.error("Error fetching seller orders:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch orders",
+      error: error.message,
+    });
+  }
+});
 
     // Update product (PUT)
     app.put("/api/products/:id", async (req, res) => {
