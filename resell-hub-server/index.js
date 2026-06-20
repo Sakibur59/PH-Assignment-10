@@ -1028,8 +1028,69 @@ async function run() {
         });
       }
     });
+    
+ app.post("/api/products", async (req, res) => {
+      try {
+        const {
+          title,
+          category,
+          condition,
+          price,
+          stock,
+          description,
+          images,
+          sellerInfo,
+          status,
+        } = req.body;
 
-    // SELLER API 
+        if (!title || !category || !price || !sellerInfo) {
+          return res.status(400).json({
+            success: false,
+            message: "Title, category, price, and seller info are required",
+          });
+        }
+
+        const productData = {
+          title,
+          category,
+          condition: condition || "Good",
+          price: parseFloat(price),
+          stock: parseInt(stock) || 1,
+          description: description || "",
+          images: images || [],
+          sellerInfo: {
+            userId: sellerInfo.userId,
+            name: sellerInfo.name,
+            email: sellerInfo.email,
+            phone: sellerInfo.phone || "",
+          },
+          status: status || "available",
+          averageRating: 0,
+          totalReviews: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        const result = await productsCollection.insertOne(productData);
+
+        res.status(201).json({
+          success: true,
+          message: "Product created successfully",
+          data: {
+            _id: result.insertedId,
+            ...productData,
+          },
+        });
+      } catch (error) {
+        console.error("Error creating product:", error);
+        res.status(500).json({
+          success: false,
+          message: "Failed to create product",
+          error: error.message,
+        });
+      }
+    });
+    // SELLER API
 
     // Get seller's products
     app.get("/api/seller/products/:userId", async (req, res) => {
@@ -1097,6 +1158,125 @@ async function run() {
       }
     });
 
+    // Update product (PUT)
+    app.put("/api/products/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid product ID",
+          });
+        }
+
+        const {
+          title,
+          category,
+          condition,
+          price,
+          stock,
+          description,
+          images,
+          status,
+        } = req.body;
+
+        // Check if product exists
+        const existingProduct = await productsCollection.findOne({
+          _id: new ObjectId(id),
+        });
+
+        if (!existingProduct) {
+          return res.status(404).json({
+            success: false,
+            message: "Product not found",
+          });
+        }
+
+        const updateData = {
+          $set: {
+            title: title || existingProduct.title,
+            category: category || existingProduct.category,
+            condition: condition || existingProduct.condition || "Good",
+            price: parseFloat(price) || existingProduct.price,
+            stock:
+              parseInt(stock) !== undefined
+                ? parseInt(stock)
+                : existingProduct.stock,
+            description: description || existingProduct.description || "",
+            images: images || existingProduct.images || [],
+            status: status || existingProduct.status || "available",
+            updatedAt: new Date().toISOString(),
+          },
+        };
+
+        const result = await productsCollection.updateOne(
+          { _id: new ObjectId(id) },
+          updateData,
+        );
+
+        if (result.matchedCount === 0) {
+          return res.status(404).json({
+            success: false,
+            message: "Product not found",
+          });
+        }
+
+        const updatedProduct = await productsCollection.findOne({
+          _id: new ObjectId(id),
+        });
+
+        res.status(200).json({
+          success: true,
+          message: "Product updated successfully",
+          data: updatedProduct,
+        });
+      } catch (error) {
+        console.error("Error updating product:", error);
+        res.status(500).json({
+          success: false,
+          message: "Failed to update product",
+          error: error.message,
+        });
+      }
+    });
+
+    // Delete product
+    app.delete("/api/products/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid product ID",
+          });
+        }
+
+        const result = await productsCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+
+        if (result.deletedCount === 0) {
+          return res.status(404).json({
+            success: false,
+            message: "Product not found",
+          });
+        }
+
+        res.status(200).json({
+          success: true,
+          message: "Product deleted successfully",
+        });
+      } catch (error) {
+        console.error("Error deleting product:", error);
+        res.status(500).json({
+          success: false,
+          message: "Failed to delete product",
+          error: error.message,
+        });
+      }
+    });
     // Get seller stats
     app.get("/api/seller/stats/:userId", async (req, res) => {
       try {
