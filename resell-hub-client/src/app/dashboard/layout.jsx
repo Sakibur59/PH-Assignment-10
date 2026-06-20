@@ -23,7 +23,6 @@ import {
 import toast from "react-hot-toast";
 import { signOut } from "@/lib/auth-client";
 
-// Unauthorized Access Component
 function UnauthorizedAccess() {
   const router = useRouter();
 
@@ -101,7 +100,19 @@ export default function DashboardLayout({ children }) {
 
     const path = pathname || "";
 
-    // Role-based access logic
+    if (path === "/dashboard") {
+      if (role === "buyer") {
+        router.replace("/dashboard/buyer/orders");
+        return;
+      } else if (role === "seller") {
+        router.replace("/dashboard/seller");
+        return;
+      } else if (role === "admin") {
+        router.replace("/dashboard/admin/manage-users");
+        return;
+      }
+    }
+
     let authorized = false;
 
     if (role === "admin") {
@@ -113,15 +124,6 @@ export default function DashboardLayout({ children }) {
         path === "/dashboard" || path.startsWith("/dashboard/seller");
     }
 
-    console.log(
-      "👤 Role:",
-      role,
-      "📍 Path:",
-      path,
-      "✅ Authorized:",
-      authorized,
-    );
-
     if (authorized) {
       setIsAuthorized(true);
     } else {
@@ -131,127 +133,91 @@ export default function DashboardLayout({ children }) {
     setIsLoading(false);
   }, [session, isPending, router, pathname]);
 
-  // Show unauthorized page
   if (!isAuthorized && !isLoading) {
     return <UnauthorizedAccess />;
   }
 
   const getNavItems = () => {
-    const baseItems = [
-      {
-        label: "Overview",
-        href: "/dashboard",
-        icon: LayoutDashboard,
-        roles: ["buyer", "seller", "admin"],
-      },
-    ];
-
-    const roleSpecific = {
+    const roleItems = {
       buyer: [
+        { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
         {
           label: "My Orders",
           href: "/dashboard/buyer/orders",
           icon: ShoppingBag,
-          roles: ["buyer"],
         },
-        {
-          label: "Wishlist",
-          href: "/dashboard/buyer/wishlist",
-          icon: Heart,
-          roles: ["buyer"],
-        },
+        { label: "Wishlist", href: "/dashboard/buyer/wishlist", icon: Heart },
         {
           label: "Payment History",
           href: "/dashboard/buyer/payments",
           icon: CreditCard,
-          roles: ["buyer"],
         },
-        {
-          label: "Profile",
-          href: "/dashboard/buyer/profile",
-          icon: User,
-          roles: ["buyer"],
-        },
+        { label: "Profile", href: "/dashboard/buyer/profile", icon: User },
       ],
       seller: [
+        { label: "Overview", href: "/dashboard/seller", icon: LayoutDashboard },
         {
           label: "Add Product",
           href: "/dashboard/seller/add-product",
           icon: PlusCircle,
-          roles: ["seller"],
         },
         {
           label: "My Products",
           href: "/dashboard/seller/my-products",
           icon: Package,
-          roles: ["seller"],
         },
         {
           label: "Manage Orders",
           href: "/dashboard/seller/manage-orders",
           icon: ClipboardList,
-          roles: ["seller"],
         },
         {
           label: "Sales Analytics",
           href: "/dashboard/seller/sales-analytics",
           icon: BarChart3,
-          roles: ["seller"],
         },
-        {
-          label: "Profile",
-          href: "/dashboard/seller/profile",
-          icon: User,
-          roles: ["seller"],
-        },
+        { label: "Profile", href: "/dashboard/seller/profile", icon: User },
       ],
       admin: [
+        { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
         {
           label: "Manage Users",
           href: "/dashboard/admin/manage-users",
           icon: Users,
-          roles: ["admin"],
         },
         {
           label: "Manage Products",
           href: "/dashboard/admin/manage-products",
           icon: Package,
-          roles: ["admin"],
         },
         {
           label: "Manage Orders",
           href: "/dashboard/admin/manage-orders",
           icon: ClipboardList,
-          roles: ["admin"],
         },
         {
           label: "Platform Analytics",
           href: "/dashboard/admin/platform-analytics",
           icon: TrendingUp,
-          roles: ["admin"],
         },
       ],
     };
 
-    const allItems = [...baseItems];
-
-    if (userRole === "buyer") {
-      allItems.push(...roleSpecific.buyer);
-    } else if (userRole === "seller") {
-      allItems.push(...roleSpecific.seller);
-    } else if (userRole === "admin") {
-      allItems.push(...roleSpecific.admin);
-    }
-
-    return allItems;
+    return roleItems[userRole] || roleItems.buyer;
   };
 
   const navItems = getNavItems();
 
   const isActive = (href) => {
-    if (href === "/dashboard") {
-      return pathname === "/dashboard";
+    if (
+      href === "/dashboard" ||
+      href === "/dashboard/seller" ||
+      href === "/dashboard/buyer" ||
+      href === "/dashboard/admin"
+    ) {
+      return pathname === href;
     }
+
     return pathname.startsWith(href);
   };
 
@@ -266,7 +232,6 @@ export default function DashboardLayout({ children }) {
     }
   };
 
-  // Loading state
   if (isPending || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -284,7 +249,6 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
         <Link href="/" className="text-xl font-bold text-black">
           ReSell <span className="text-emerald-400">Hub</span>
@@ -301,7 +265,6 @@ export default function DashboardLayout({ children }) {
         </button>
       </div>
 
-      {/* Sidebar */}
       <aside
         className={`
         fixed top-0 left-0 z-40 h-full w-64 bg-white border-r border-gray-200 transition-transform duration-300
