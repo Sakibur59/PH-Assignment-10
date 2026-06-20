@@ -1,4 +1,4 @@
-// lib/core/server.js
+
 const baseUrl = process.env.NEXT_PUBLIC_API_URL;
 
 export const serverFetch = async (path) => {

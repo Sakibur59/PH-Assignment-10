@@ -2,14 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "@/lib/auth-client";
-import { useRouter } from "next/navigation"; 
 import { Card, Button, Input } from "@heroui/react";
-import { updateUser, getUserById } from "@/lib/api/user";
+import { updateUser, getUserById, changePassword } from "@/lib/api/user";
+import { Eye, EyeSlash } from "@gravity-ui/icons";
 import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
 export default function BuyerProfile() {
-  const { data: session, refetch } = useSession(); 
-  const router = useRouter(); 
+  const { data: session, refetch } = useSession();
+  const router = useRouter();
   const user = session?.user;
 
   const [isEditing, setIsEditing] = useState(false);
@@ -21,7 +22,17 @@ export default function BuyerProfile() {
   });
   const [isFetching, setIsFetching] = useState(true);
 
-  // Fetch latest user data from database
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [isPasswordLoading, setIsPasswordLoading] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   useEffect(() => {
     const fetchUserData = async () => {
       try {
@@ -63,12 +74,11 @@ export default function BuyerProfile() {
       });
 
       if (response.success) {
-    
         await refetch();
 
         toast.success("Profile updated successfully!");
         setIsEditing(false);
-        router.refresh(); 
+        router.refresh();
       } else {
         toast.error(response.message || "Failed to update profile");
       }
@@ -77,6 +87,56 @@ export default function BuyerProfile() {
       toast.error("Failed to update profile");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!passwordData.currentPassword) {
+      toast.error("Please enter your current password");
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      toast.error("New password must be at least 6 characters");
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    setIsPasswordLoading(true);
+
+    try {
+      const response = await changePassword(
+        passwordData.currentPassword,
+        passwordData.newPassword,
+      );
+
+      if (response.success) {
+        toast.success("Password changed successfully!");
+        setIsPasswordModalOpen(false);
+        setPasswordData({
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
+        });
+      } else {
+        toast.error(response.message || "Failed to change password");
+      }
+    } catch (error) {
+      console.error("Password change error:", error);
+      toast.error("Failed to change password");
+    } finally {
+      setIsPasswordLoading(false);
     }
   };
 
@@ -104,7 +164,9 @@ export default function BuyerProfile() {
                 className="w-full h-full object-cover"
               />
             </div>
-            <h2 className="text-xl font-semibold text-gray-900 mt-3">{formData.name || user?.name}</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mt-3">
+              {formData.name || user?.name}
+            </h2>
             <p className="text-gray-500 text-sm">{user?.email}</p>
             <span className="inline-block text-sm font-medium px-3 py-1 rounded-full mt-2 bg-blue-100 text-blue-700">
               Buyer
@@ -112,22 +174,29 @@ export default function BuyerProfile() {
             <div className="mt-4 pt-4 border-t border-gray-100">
               <p className="text-sm text-gray-500">Member since</p>
               <p className="text-sm font-medium text-gray-700">
-                {new Date(user?.createdAt || Date.now()).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                })}
+                {new Date(user?.createdAt || Date.now()).toLocaleDateString(
+                  "en-US",
+                  {
+                    year: "numeric",
+                    month: "long",
+                  },
+                )}
               </p>
             </div>
             {formData.phone && (
               <div className="mt-4 pt-4 border-t border-gray-100">
                 <p className="text-sm text-gray-500">Phone</p>
-                <p className="text-sm font-medium text-gray-700">{formData.phone}</p>
+                <p className="text-sm font-medium text-gray-700">
+                  {formData.phone}
+                </p>
               </div>
             )}
             {formData.address && (
               <div className="mt-2">
                 <p className="text-sm text-gray-500">Address</p>
-                <p className="text-sm font-medium text-gray-700">{formData.address}</p>
+                <p className="text-sm font-medium text-gray-700">
+                  {formData.address}
+                </p>
               </div>
             )}
           </Card>
@@ -137,16 +206,29 @@ export default function BuyerProfile() {
         <div className="lg:col-span-2">
           <Card className="p-6 border border-gray-100">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-semibold text-gray-900">Personal Information</h3>
-              {!isEditing && (
-                <Button
-                  onClick={() => setIsEditing(true)}
-                  className="bg-emerald-500 text-white hover:bg-emerald-600"
-                  size="sm"
-                >
-                  Edit Profile
-                </Button>
-              )}
+              <h3 className="font-semibold text-gray-900">
+                Personal Information
+              </h3>
+              <div className="flex gap-2">
+                {!isEditing && (
+                  <>
+                    <Button
+                      onClick={() => setIsPasswordModalOpen(true)}
+                      className="bg-amber-500 text-white hover:bg-amber-600"
+                      size="sm"
+                    >
+                      Change Password
+                    </Button>
+                    <Button
+                      onClick={() => setIsEditing(true)}
+                      className="bg-emerald-500 text-white hover:bg-emerald-600"
+                      size="sm"
+                    >
+                      Edit Profile
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
 
             <form onSubmit={handleSubmit}>
@@ -174,7 +256,9 @@ export default function BuyerProfile() {
                     disabled
                     className="w-full bg-gray-50"
                   />
-                  <p className="text-xs text-gray-400 mt-1">Email cannot be changed</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Email cannot be changed
+                  </p>
                 </div>
 
                 <div>
@@ -235,6 +319,153 @@ export default function BuyerProfile() {
           </Card>
         </div>
       </div>
+
+      {/* Password Change Modal - Custom Modal */}
+      {isPasswordModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <svg
+                  className="w-6 h-6 text-amber-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">
+                  Change Password
+                </h3>
+                <p className="text-sm text-gray-500">
+                  Update your account password
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              {/* Current Password */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Current Password
+                </label>
+                <div className="relative">
+                  <Input
+                    type={showCurrentPassword ? "text" : "password"}
+                    name="currentPassword"
+                    value={passwordData.currentPassword}
+                    onChange={handlePasswordChange}
+                    placeholder="Enter current password"
+                    className="w-full pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showCurrentPassword ? (
+                      <EyeSlash className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* New Password */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  New Password
+                </label>
+                <div className="relative">
+                  <Input
+                    type={showNewPassword ? "text" : "password"}
+                    name="newPassword"
+                    value={passwordData.newPassword}
+                    onChange={handlePasswordChange}
+                    placeholder="Min 6 characters"
+                    className="w-full pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showNewPassword ? (
+                      <EyeSlash className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Confirm Password */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Confirm New Password
+                </label>
+                <div className="relative">
+                  <Input
+                    type={showConfirmPassword ? "text" : "password"}
+                    name="confirmPassword"
+                    value={passwordData.confirmPassword}
+                    onChange={handlePasswordChange}
+                    placeholder="Re-enter new password"
+                    className="w-full pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeSlash className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  type="submit"
+                  isLoading={isPasswordLoading}
+                  className="flex-1 bg-emerald-500 text-white hover:bg-emerald-600"
+                >
+                  Update Password
+                </Button>
+                <Button
+                  type="button"
+                  variant="light"
+                  onClick={() => {
+                    setIsPasswordModalOpen(false);
+                    setPasswordData({
+                      currentPassword: "",
+                      newPassword: "",
+                      confirmPassword: "",
+                    });
+                  }}
+                  className="text-gray-600 hover:bg-gray-100"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
