@@ -35,11 +35,11 @@ export default function ProductDetailsPage() {
   const [mainImage, setMainImage] = useState("");
   const [userData, setUserData] = useState(null);
 
-  // Wishlist state
+  
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isWishlistLoading, setIsWishlistLoading] = useState(false);
 
-  // Fetch user data from database
+
   useEffect(() => {
     const fetchUserData = async () => {
       if (session?.user?.id) {
@@ -56,7 +56,7 @@ export default function ProductDetailsPage() {
     fetchUserData();
   }, [session]);
 
-  // Check wishlist status
+
   useEffect(() => {
     if (session?.user && productId) {
       checkWishlistStatus();
@@ -148,11 +148,21 @@ export default function ProductDetailsPage() {
     }
   }, [productId]);
 
-  // Handle Wishlist Toggle
   const handleWishlistToggle = async () => {
     if (!session?.user) {
       toast.error("Please login to add to wishlist");
       router.push("/auth/signin");
+      return;
+    }
+
+
+    if (session.user?.role === "seller") {
+      toast.error("Only buyers can add items to wishlist");
+      return;
+    }
+
+    if (session.user?.role === "admin") {
+      toast.error("Only buyers can add items to wishlist");
       return;
     }
 
@@ -203,10 +213,27 @@ export default function ProductDetailsPage() {
       return;
     }
 
+  
+    if (product.sellerInfo?.userId === session.user.id) {
+      toast.error("You cannot purchase your own product");
+      return;
+    }
+
+  
+    if (session.user?.role === "seller") {
+      toast.error("Only buyers can purchase products");
+      return;
+    }
+
+
+    if (session.user?.role === "admin") {
+      toast.error("Admin cannot purchase products");
+      return;
+    }
+
     try {
       setIsProcessing(true);
 
- 
       const orderData = {
         userId: session.user.id,
         productId: productId,
@@ -231,7 +258,7 @@ export default function ProductDetailsPage() {
 
       const orderId = orderResponse.data._id;
 
-      // Create Stripe Checkout Session
+ 
       const stripeResponse = await fetch("/api/checkout_session", {
         method: "POST",
         headers: {
@@ -274,6 +301,11 @@ export default function ProductDetailsPage() {
       maximumFractionDigits: 0,
     }).format(price);
   };
+
+ 
+  const isSeller = session?.user?.id === product?.sellerInfo?.userId;
+
+  const isBuyer = session?.user?.role === "buyer";
 
   if (loading) {
     return (
@@ -453,31 +485,48 @@ export default function ProductDetailsPage() {
               </div>
             )}
 
-            {/* Buy Now + Wishlist Buttons */}
+   
             <div className="flex flex-col sm:flex-row gap-3">
+  
               {product.status === "available" && product.stock > 0 ? (
-                <Button
-                  onClick={handleBuyNow}
-                  isLoading={isProcessing}
-                  className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-500 text-white hover:from-emerald-700 hover:to-teal-600 h-14 text-xl font-semibold shadow-lg shadow-emerald-200 rounded-xl"
-                >
-                  <span className="flex items-center gap-3">
-                    <svg
-                      className="w-6 h-6"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                      />
-                    </svg>
-                    Buy Now - {formatPrice(product.price)}
-                  </span>
-                </Button>
+                isSeller ? (
+                  <Button
+                    disabled
+                    className="flex-1 bg-gray-400 text-white h-14 text-xl font-semibold rounded-xl cursor-not-allowed"
+                  >
+                    You cannot buy your own product
+                  </Button>
+                ) : session?.user?.role !== "buyer" ? (
+                  <Button
+                    disabled
+                    className="flex-1 bg-gray-400 text-white h-14 text-xl font-semibold rounded-xl cursor-not-allowed"
+                  >
+                    Only buyers can purchase products
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleBuyNow}
+                    isLoading={isProcessing}
+                    className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-500 text-white hover:from-emerald-700 hover:to-teal-600 h-14 text-xl font-semibold shadow-lg shadow-emerald-200 rounded-xl"
+                  >
+                    <span className="flex items-center gap-3">
+                      <svg
+                        className="w-6 h-6"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                        />
+                      </svg>
+                      Buy Now - {formatPrice(product.price)}
+                    </span>
+                  </Button>
+                )
               ) : (
                 <Button
                   disabled
@@ -487,38 +536,41 @@ export default function ProductDetailsPage() {
                 </Button>
               )}
 
-              <Button
-                onClick={handleWishlistToggle}
-                isLoading={isWishlistLoading}
-                variant="bordered"
-                className={`h-14 px-6 rounded-xl border-2 transition-all duration-200 ${
-                  isWishlisted
-                    ? "border-red-500 bg-red-50 text-red-500 hover:bg-red-100"
-                    : "border-gray-300 text-gray-600 hover:border-red-400 hover:text-red-500"
-                }`}
-              >
-                <span className="flex items-center gap-2">
-                  <svg
-                    className={`w-6 h-6 ${
-                      isWishlisted ? "fill-red-500 text-red-500" : "fill-none"
-                    }`}
-                    fill={isWishlisted ? "currentColor" : "none"}
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                    />
-                  </svg>
-                  {isWishlisted ? "Wishlisted" : "Add to Wishlist"}
-                </span>
-              </Button>
+  
+              {isBuyer && !isSeller && (
+                <Button
+                  onClick={handleWishlistToggle}
+                  isLoading={isWishlistLoading}
+                  variant="bordered"
+                  className={`h-14 px-6 rounded-xl border-2 transition-all duration-200 ${
+                    isWishlisted
+                      ? "border-red-500 bg-red-50 text-red-500 hover:bg-red-100"
+                      : "border-gray-300 text-gray-600 hover:border-red-400 hover:text-red-500"
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <svg
+                      className={`w-6 h-6 ${
+                        isWishlisted ? "fill-red-500 text-red-500" : "fill-none"
+                      }`}
+                      fill={isWishlisted ? "currentColor" : "none"}
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                      />
+                    </svg>
+                    {isWishlisted ? "Wishlisted" : "Add to Wishlist"}
+                  </span>
+                </Button>
+              )}
             </div>
 
-            {product.status === "available" && product.stock > 0 && (
+            {product.status === "available" && product.stock > 0 && isBuyer && !isSeller && (
               <div className="flex items-center justify-center gap-4 text-sm text-gray-500 bg-gray-50 px-4 py-3 rounded-lg">
                 <div className="flex items-center gap-2">
                   <svg

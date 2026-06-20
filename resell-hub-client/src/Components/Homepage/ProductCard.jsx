@@ -21,11 +21,14 @@ export default function ProductCard({ product }) {
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  const userRole = session?.user?.role;
+  const isBuyer = userRole === "buyer";
+
   useEffect(() => {
-    if (session?.user) {
+    if (session?.user && isBuyer) {
       checkWishlistStatus();
     }
-  }, [session, product._id]);
+  }, [session, product._id, isBuyer]);
 
   const checkWishlistStatus = async () => {
     try {
@@ -44,6 +47,12 @@ export default function ProductCard({ product }) {
 
     if (!session?.user) {
       toast.error("Please login to add to wishlist");
+      return;
+    }
+
+  
+    if (!isBuyer) {
+      toast.error("Only buyers can add items to wishlist");
       return;
     }
 
@@ -117,7 +126,7 @@ export default function ProductCard({ product }) {
           </div>
         </Link>
 
-        {/* ✅ View Details + Wishlist Buttons */}
+        {/* View Details + Wishlist Buttons */}
         <div className="flex gap-2">
           <Link href={`/products/${product._id}`} className="flex-1">
             <Button
@@ -128,32 +137,34 @@ export default function ProductCard({ product }) {
             </Button>
           </Link>
 
-          {/* Wishlist Button */}
-          <button
-            onClick={handleWishlistToggle}
-            disabled={isLoading}
-            className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all flex-shrink-0 ${
-              isWishlisted
-                ? "bg-red-50 text-red-500 border border-red-200"
-                : "bg-gray-100 text-gray-400 hover:bg-red-50 hover:text-red-500"
-            }`}
-          >
-            <svg
-              className={`w-5 h-5 transition-all ${
-                isWishlisted ? "fill-red-500" : "fill-none"
+
+          {isBuyer && (
+            <button
+              onClick={handleWishlistToggle}
+              disabled={isLoading}
+              className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all flex-shrink-0 ${
+                isWishlisted
+                  ? "bg-red-50 text-red-500 border border-red-200"
+                  : "bg-gray-100 text-gray-400 hover:bg-red-50 hover:text-red-500"
               }`}
-              fill={isWishlisted ? "currentColor" : "none"}
-              stroke="currentColor"
-              viewBox="0 0 24 24"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-              />
-            </svg>
-          </button>
+              <svg
+                className={`w-5 h-5 transition-all ${
+                  isWishlisted ? "fill-red-500" : "fill-none"
+                }`}
+                fill={isWishlisted ? "currentColor" : "none"}
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
     </div>
