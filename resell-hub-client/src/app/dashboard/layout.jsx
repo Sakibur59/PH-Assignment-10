@@ -102,13 +102,13 @@ export default function DashboardLayout({ children }) {
 
     if (path === "/dashboard") {
       if (role === "buyer") {
-        router.replace("/dashboard/buyer/orders");
+        router.replace("/dashboard/buyer");
         return;
       } else if (role === "seller") {
         router.replace("/dashboard/seller");
         return;
       } else if (role === "admin") {
-        router.replace("/dashboard/admin/manage-users");
+        router.replace("/dashboard/admin");
         return;
       }
     }
@@ -140,7 +140,7 @@ export default function DashboardLayout({ children }) {
   const getNavItems = () => {
     const roleItems = {
       buyer: [
-        { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
+        { label: "Overview", href: "/dashboard/buyer", icon: LayoutDashboard },
         {
           label: "My Orders",
           href: "/dashboard/buyer/orders",
@@ -179,7 +179,7 @@ export default function DashboardLayout({ children }) {
         { label: "Profile", href: "/dashboard/seller/profile", icon: User },
       ],
       admin: [
-        { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
+        { label: "Overview", href: "/dashboard/admin", icon: LayoutDashboard },
         {
           label: "Manage Users",
           href: "/dashboard/admin/manage-users",
@@ -210,9 +210,8 @@ export default function DashboardLayout({ children }) {
 
   const isActive = (href) => {
     if (
-      href === "/dashboard" ||
-      href === "/dashboard/seller" ||
       href === "/dashboard/buyer" ||
+      href === "/dashboard/seller" ||
       href === "/dashboard/admin"
     ) {
       return pathname === href;
@@ -220,7 +219,6 @@ export default function DashboardLayout({ children }) {
 
     return pathname.startsWith(href);
   };
-
   const handleSignOut = async () => {
     try {
       await signOut();

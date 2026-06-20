@@ -1,4 +1,4 @@
-// app/dashboard/seller/add-product/page.jsx
+
 "use client";
 
 import { useState } from "react";

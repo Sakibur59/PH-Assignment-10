@@ -6,7 +6,7 @@ import { getSellerProducts, deleteProduct, updateProduct } from "@/lib/api/selle
 import { Spinner, Card, Button, Input, Modal } from "@heroui/react";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { Package, Pencil, Trash2, Eye, X } from "lucide-react";
+import { Package, Pencil, Trash2, Eye, X, Image as ImageIcon } from "lucide-react";
 
 const CATEGORIES = ["Electronics", "Furniture", "Vehicles", "Fashion", "Mobile Phones", "Appliances", "Books", "Sports", "Toys", "Games", "Other"];
 const CONDITIONS = ["Excellent", "Good", "Fair"];
@@ -40,6 +40,7 @@ export default function MyProducts() {
     status: "",
   });
   const [isEditLoading, setIsEditLoading] = useState(false);
+  const [imageInput, setImageInput] = useState("");
 
   // Delete Modal States
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -78,6 +79,7 @@ export default function MyProducts() {
       images: product.images || [],
       status: product.status || "available",
     });
+    setImageInput("");
     setIsEditModalOpen(true);
   };
 
@@ -85,12 +87,32 @@ export default function MyProducts() {
   const closeEditModal = () => {
     setIsEditModalOpen(false);
     setEditingProduct(null);
+    setImageInput("");
   };
 
   // Handle Edit Form Change
   const handleEditChange = (e) => {
     const { name, value } = e.target;
     setEditFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // Handle Image Add
+  const addImage = () => {
+    if (imageInput && editFormData.images.length < 4) {
+      setEditFormData((prev) => ({
+        ...prev,
+        images: [...prev.images, imageInput],
+      }));
+      setImageInput("");
+    }
+  };
+
+  // Handle Image Remove
+  const removeImage = (index) => {
+    setEditFormData((prev) => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index),
+    }));
   };
 
   // Handle Edit Submit
@@ -103,6 +125,7 @@ export default function MyProducts() {
         ...editFormData,
         price: parseFloat(editFormData.price),
         stock: parseInt(editFormData.stock),
+        images: editFormData.images.filter(img => img.trim() !== ""),
       };
 
       const response = await updateProduct(editingProduct._id, productData);
@@ -210,7 +233,7 @@ export default function MyProducts() {
             <Card key={product._id} className="p-4 border border-gray-100 hover:shadow-lg transition">
               <div className="relative h-48 bg-gray-100 rounded-lg overflow-hidden">
                 {product.images && product.images.length > 0 ? (
-                  <img src={product.images[0]} alt={product.title} className="w-full h-full object-cover" />
+                  <img src={product.images[0]} alt={product.title} className="w-48 h-48 mx-auto object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-gray-400">No Image</div>
                 )}
@@ -253,7 +276,7 @@ export default function MyProducts() {
         </div>
       )}
 
-      {/* Edit Modal - HeroUI v3 */}
+      {/* Edit Modal*/}
       {isEditModalOpen && (
         <Modal 
           isOpen={isEditModalOpen} 
@@ -360,6 +383,49 @@ export default function MyProducts() {
                   className="w-full rounded-xl border border-gray-200 px-4 py-3 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-colors text-sm"
                   required
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Product Images</label>
+                <div className="flex gap-2 mb-2">
+                  <Input
+                    value={imageInput}
+                    onChange={(e) => setImageInput(e.target.value)}
+                    placeholder="Enter image URL"
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    onClick={addImage}
+                    className="bg-emerald-500 text-white hover:bg-emerald-600"
+                    size="sm"
+                  >
+                    Add
+                  </Button>
+                </div>
+                
+                {/* Image Preview */}
+                {editFormData.images.length > 0 && (
+                  <div className="flex gap-2 flex-wrap mt-2">
+                    {editFormData.images.map((url, index) => (
+                      <div key={index} className="relative group">
+                        <img 
+                          src={url} 
+                          alt={`Product ${index + 1}`} 
+                          className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(index)}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-gray-400 mt-1">Maximum 4 images. Enter image URL and click Add.</p>
               </div>
 
               <div>

@@ -2,18 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "@/lib/auth-client";
-import { getSellerStats } from "@/lib/api/seller";
 import { Spinner } from "@heroui/react";
 import Link from "next/link";
-import { Package, ShoppingBag, DollarSign, Clock, PlusCircle, ClipboardList, TrendingUp } from "lucide-react";
+import { Users, Package, ShoppingBag, DollarSign } from "lucide-react";
 
-export default function SellerOverview() {
+export default function AdminOverview() {
   const { data: session } = useSession();
   const [stats, setStats] = useState({
+    totalUsers: 0,
     totalProducts: 0,
     totalOrders: 0,
-    completedOrders: 0,
-    pendingOrders: 0,
     totalRevenue: 0,
   });
   const [loading, setLoading] = useState(true);
@@ -21,10 +19,13 @@ export default function SellerOverview() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const data = await getSellerStats(session?.user?.id);
-        if (data.success) {
-          setStats(data.data);
-        }
+
+        setStats({
+          totalUsers: 0,
+          totalProducts: 0,
+          totalOrders: 0,
+          totalRevenue: 0,
+        });
       } catch (error) {
         console.error("Error fetching stats:", error);
       } finally {
@@ -32,16 +33,14 @@ export default function SellerOverview() {
       }
     };
 
-    if (session?.user?.id) {
-      fetchStats();
-    }
+    fetchStats();
   }, [session]);
 
   const statCards = [
-    { label: "Total Products", value: stats.totalProducts, icon: Package, color: "bg-purple-500" },
-    { label: "Total Orders", value: stats.totalOrders, icon: ShoppingBag, color: "bg-blue-500" },
-    { label: "Total Revenue", value: `BDT ${stats.totalRevenue.toLocaleString()}`, icon: DollarSign, color: "bg-green-500" },
-    { label: "Pending Orders", value: stats.pendingOrders, icon: Clock, color: "bg-amber-500" },
+    { label: "Total Users", value: stats.totalUsers, icon: Users, color: "bg-purple-500" },
+    { label: "Total Products", value: stats.totalProducts, icon: Package, color: "bg-blue-500" },
+    { label: "Total Orders", value: stats.totalOrders, icon: ShoppingBag, color: "bg-green-500" },
+    { label: "Total Revenue", value: `BDT ${stats.totalRevenue.toLocaleString()}`, icon: DollarSign, color: "bg-amber-500" },
   ];
 
   if (loading) {
@@ -55,11 +54,10 @@ export default function SellerOverview() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Seller Dashboard</h1>
-        <p className="text-gray-500 mt-1">Manage your products, orders, and sales</p>
+        <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+        <p className="text-gray-500 mt-1">Manage users, products, and platform analytics</p>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {statCards.map((stat, index) => {
           const Icon = stat.icon;
@@ -82,29 +80,19 @@ export default function SellerOverview() {
         })}
       </div>
 
-      {/* Quick Actions */}
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <Link
-            href="/dashboard/seller/add-product"
-            className="p-4 bg-gray-50 rounded-lg hover:bg-emerald-50 transition text-center"
-          >
-            <PlusCircle className="w-6 h-6 mx-auto text-gray-600" />
-            <span className="text-sm text-gray-700 mt-2 block">Add Product</span>
+          <Link href="/dashboard/admin/manage-users" className="p-4 bg-gray-50 rounded-lg hover:bg-emerald-50 transition text-center">
+            <Users className="w-6 h-6 mx-auto text-gray-600" />
+            <span className="text-sm text-gray-700 mt-2 block">Manage Users</span>
           </Link>
-          <Link
-            href="/dashboard/seller/my-products"
-            className="p-4 bg-gray-50 rounded-lg hover:bg-emerald-50 transition text-center"
-          >
+          <Link href="/dashboard/admin/manage-products" className="p-4 bg-gray-50 rounded-lg hover:bg-emerald-50 transition text-center">
             <Package className="w-6 h-6 mx-auto text-gray-600" />
-            <span className="text-sm text-gray-700 mt-2 block">My Products</span>
+            <span className="text-sm text-gray-700 mt-2 block">Manage Products</span>
           </Link>
-          <Link
-            href="/dashboard/seller/manage-orders"
-            className="p-4 bg-gray-50 rounded-lg hover:bg-emerald-50 transition text-center"
-          >
-            <ClipboardList className="w-6 h-6 mx-auto text-gray-600" />
+          <Link href="/dashboard/admin/manage-orders" className="p-4 bg-gray-50 rounded-lg hover:bg-emerald-50 transition text-center">
+            <ShoppingBag className="w-6 h-6 mx-auto text-gray-600" />
             <span className="text-sm text-gray-700 mt-2 block">Manage Orders</span>
           </Link>
         </div>
