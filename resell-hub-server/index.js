@@ -910,7 +910,7 @@ async function run() {
     });
 
     //USERS API
-    
+
     // Get all users
     app.get("/api/users", async (req, res) => {
       try {
@@ -977,7 +977,6 @@ async function run() {
           });
         }
 
-      
         const existingUser = await usersCollection.findOne({
           _id: new ObjectId(userId),
         });
@@ -1030,6 +1029,174 @@ async function run() {
       }
     });
 
+    // SELLER API 
+
+    // Get seller's products
+    app.get("/api/seller/products/:userId", async (req, res) => {
+      try {
+        const { userId } = req.params;
+
+        const products = await productsCollection
+          .find({ "sellerInfo.userId": userId })
+          .sort({ createdAt: -1 })
+          .toArray();
+
+        res.status(200).json({
+          success: true,
+          data: products,
+        });
+      } catch (error) {
+        console.error("Error fetching seller products:", error);
+        res.status(500).json({
+          success: false,
+          message: "Failed to fetch products",
+          error: error.message,
+        });
+      }
+    });
+
+    // Get seller's orders
+    app.get("/api/seller/orders/:userId", async (req, res) => {
+      try {
+        const { userId } = req.params;
+
+        const orders = await ordersCollection
+          .find({ sellerId: userId })
+          .sort({ createdAt: -1 })
+          .toArray();
+
+        const ordersWithDetails = await Promise.all(
+          orders.map(async (order) => {
+            const product = await productsCollection.findOne({
+              _id: new ObjectId(order.productId),
+            });
+            const buyer = await usersCollection.findOne({
+              _id: new ObjectId(order.userId),
+            });
+            return {
+              ...order,
+              productDetails: product || null,
+              buyerInfo: buyer
+                ? { name: buyer.name, email: buyer.email }
+                : null,
+            };
+          }),
+        );
+
+        res.status(200).json({
+          success: true,
+          data: ordersWithDetails,
+        });
+      } catch (error) {
+        console.error("Error fetching seller orders:", error);
+        res.status(500).json({
+          success: false,
+          message: "Failed to fetch orders",
+          error: error.message,
+        });
+      }
+    });
+
+    // Get seller stats
+    app.get("/api/seller/stats/:userId", async (req, res) => {
+      try {
+        const { userId } = req.params;
+
+        const totalProducts = await productsCollection.countDocuments({
+          "sellerInfo.userId": userId,
+        });
+
+        const orders = await ordersCollection
+          .find({ sellerId: userId })
+          .toArray();
+
+        const totalOrders = orders.length;
+        const completedOrders = orders.filter(
+          (o) => o.orderStatus === "delivered",
+        ).length;
+        const pendingOrders = orders.filter(
+          (o) => o.orderStatus === "pending" || o.orderStatus === "confirmed",
+        ).length;
+        const totalRevenue = orders
+          .filter((o) => o.orderStatus === "delivered")
+          .reduce((sum, o) => sum + o.totalAmount, 0);
+
+        res.status(200).json({
+          success: true,
+          data: {
+            totalProducts,
+            totalOrders,
+            completedOrders,
+            pendingOrders,
+            totalRevenue,
+          },
+        });
+      } catch (error) {
+        console.error("Error fetching seller stats:", error);
+        res.status(500).json({
+          success: false,
+          message: "Failed to fetch stats",
+          error: error.message,
+        });
+      }
+    });
+
+    // Update order status (for seller)
+    app.patch("/api/seller/orders/:orderId/status", async (req, res) => {
+      try {
+        const { orderId } = req.params;
+        const { status, sellerId } = req.body;
+
+        const validStatuses = [
+          "pending",
+          "confirmed",
+          "processing",
+          "shipped",
+          "delivered",
+          "cancelled",
+        ];
+        if (!validStatuses.includes(status)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid status",
+          });
+        }
+
+        const order = await ordersCollection.findOne({
+          _id: new ObjectId(orderId),
+          sellerId: sellerId,
+        });
+
+        if (!order) {
+          return res.status(404).json({
+            success: false,
+            message: "Order not found",
+          });
+        }
+
+        await ordersCollection.updateOne(
+          { _id: new ObjectId(orderId) },
+          {
+            $set: {
+              orderStatus: status,
+              updatedAt: new Date().toISOString(),
+            },
+          },
+        );
+
+        res.status(200).json({
+          success: true,
+          message: "Order status updated successfully",
+        });
+      } catch (error) {
+        console.error("Error updating order status:", error);
+        res.status(500).json({
+          success: false,
+          message: "Failed to update order status",
+          error: error.message,
+        });
+      }
+    });
     app.listen(port, () => {
       console.log(`Server is running on port ${port}`);
     });
