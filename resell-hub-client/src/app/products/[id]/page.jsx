@@ -35,10 +35,9 @@ export default function ProductDetailsPage() {
   const [mainImage, setMainImage] = useState("");
   const [userData, setUserData] = useState(null);
 
-  
+
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isWishlistLoading, setIsWishlistLoading] = useState(false);
-
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -55,7 +54,6 @@ export default function ProductDetailsPage() {
     };
     fetchUserData();
   }, [session]);
-
 
   useEffect(() => {
     if (session?.user && productId) {
@@ -148,13 +146,13 @@ export default function ProductDetailsPage() {
     }
   }, [productId]);
 
+
   const handleWishlistToggle = async () => {
     if (!session?.user) {
       toast.error("Please login to add to wishlist");
       router.push("/auth/signin");
       return;
     }
-
 
     if (session.user?.role === "seller") {
       toast.error("Only buyers can add items to wishlist");
@@ -195,7 +193,6 @@ export default function ProductDetailsPage() {
     }
   };
 
-  // Handle Buy Now
   const handleBuyNow = async () => {
     if (!product || product.status !== "available") {
       toast.error("Product is not available");
@@ -213,18 +210,16 @@ export default function ProductDetailsPage() {
       return;
     }
 
-  
     if (product.sellerInfo?.userId === session.user.id) {
       toast.error("You cannot purchase your own product");
       return;
     }
 
-  
+
     if (session.user?.role === "seller") {
       toast.error("Only buyers can purchase products");
       return;
     }
-
 
     if (session.user?.role === "admin") {
       toast.error("Admin cannot purchase products");
@@ -258,7 +253,6 @@ export default function ProductDetailsPage() {
 
       const orderId = orderResponse.data._id;
 
- 
       const stripeResponse = await fetch("/api/checkout_session", {
         method: "POST",
         headers: {
@@ -302,7 +296,7 @@ export default function ProductDetailsPage() {
     }).format(price);
   };
 
- 
+
   const isSeller = session?.user?.id === product?.sellerInfo?.userId;
 
   const isBuyer = session?.user?.role === "buyer";
@@ -485,9 +479,8 @@ export default function ProductDetailsPage() {
               </div>
             )}
 
-   
             <div className="flex flex-col sm:flex-row gap-3">
-  
+
               {product.status === "available" && product.stock > 0 ? (
                 isSeller ? (
                   <Button
@@ -536,7 +529,6 @@ export default function ProductDetailsPage() {
                 </Button>
               )}
 
-  
               {isBuyer && !isSeller && (
                 <Button
                   onClick={handleWishlistToggle}
@@ -606,10 +598,12 @@ export default function ProductDetailsPage() {
           </div>
         </div>
 
+
         <div className="mt-12">
           <ReviewSection
             productId={productId}
             onReviewChange={refreshProductData}
+            isBuyer={isBuyer}
           />
         </div>
 
