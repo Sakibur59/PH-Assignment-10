@@ -35,7 +35,6 @@ export default function ProductDetailsPage() {
   const [mainImage, setMainImage] = useState("");
   const [userData, setUserData] = useState(null);
 
-
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isWishlistLoading, setIsWishlistLoading] = useState(false);
 
@@ -146,7 +145,6 @@ export default function ProductDetailsPage() {
     }
   }, [productId]);
 
-
   const handleWishlistToggle = async () => {
     if (!session?.user) {
       toast.error("Please login to add to wishlist");
@@ -210,11 +208,16 @@ export default function ProductDetailsPage() {
       return;
     }
 
+
+    if (userData?.isBlocked) {
+      toast.error("Your account has been blocked. Please contact support.");
+      return;
+    }
+
     if (product.sellerInfo?.userId === session.user.id) {
       toast.error("You cannot purchase your own product");
       return;
     }
-
 
     if (session.user?.role === "seller") {
       toast.error("Only buyers can purchase products");
@@ -282,7 +285,6 @@ export default function ProductDetailsPage() {
       setIsProcessing(false);
     }
   };
-
   const handleThumbnailClick = (imageUrl) => {
     setMainImage(imageUrl);
   };
@@ -295,7 +297,6 @@ export default function ProductDetailsPage() {
       maximumFractionDigits: 0,
     }).format(price);
   };
-
 
   const isSeller = session?.user?.id === product?.sellerInfo?.userId;
 
@@ -480,7 +481,6 @@ export default function ProductDetailsPage() {
             )}
 
             <div className="flex flex-col sm:flex-row gap-3">
-
               {product.status === "available" && product.stock > 0 ? (
                 isSeller ? (
                   <Button
@@ -562,42 +562,44 @@ export default function ProductDetailsPage() {
               )}
             </div>
 
-            {product.status === "available" && product.stock > 0 && isBuyer && !isSeller && (
-              <div className="flex items-center justify-center gap-4 text-sm text-gray-500 bg-gray-50 px-4 py-3 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <svg
-                    className="w-5 h-5 text-emerald-500"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  <span>Secure payment</span>
+            {product.status === "available" &&
+              product.stock > 0 &&
+              isBuyer &&
+              !isSeller && (
+                <div className="flex items-center justify-center gap-4 text-sm text-gray-500 bg-gray-50 px-4 py-3 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <svg
+                      className="w-5 h-5 text-emerald-500"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span>Secure payment</span>
+                  </div>
+                  <span className="text-gray-300">|</span>
+                  <div className="flex items-center gap-2">
+                    <svg
+                      className="w-5 h-5 text-emerald-500"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9zM4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span>100% buyer protection</span>
+                  </div>
                 </div>
-                <span className="text-gray-300">|</span>
-                <div className="flex items-center gap-2">
-                  <svg
-                    className="w-5 h-5 text-emerald-500"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9zM4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  <span>100% buyer protection</span>
-                </div>
-              </div>
-            )}
+              )}
           </div>
         </div>
-
 
         <div className="mt-12">
           <ReviewSection
