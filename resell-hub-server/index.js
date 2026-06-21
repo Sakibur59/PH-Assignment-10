@@ -1542,7 +1542,123 @@ async function run() {
       }
     });
 
+app.patch("/api/admin/users/:userId/status", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { isBlocked, role } = req.body;
 
+    if (!ObjectId.isValid(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user ID",
+      });
+    }
+
+
+    const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+ 
+    if (user.role === "admin" && role && role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Cannot change admin role",
+      });
+    }
+
+    const updateData = {
+      updatedAt: new Date().toISOString()
+    };
+
+    if (isBlocked !== undefined) {
+      updateData.isBlocked = isBlocked;
+    }
+
+    if (role) {
+      updateData.role = role;
+    }
+
+    const result = await usersCollection.updateOne(
+      { _id: new ObjectId(userId) },
+      { $set: updateData }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "User updated successfully",
+    });
+  } catch (error) {
+    console.error("Error updating user:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update user",
+      error: error.message,
+    });
+  }
+});
+
+    // Delete user (admin)
+    app.delete("/api/admin/users/:userId", async (req, res) => {
+      try {
+        const { userId } = req.params;
+
+        if (!ObjectId.isValid(userId)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid user ID",
+          });
+        }
+
+        // Check if user is admin
+        const user = await usersCollection.findOne({
+          _id: new ObjectId(userId),
+        });
+        if (user?.role === "admin") {
+          return res.status(403).json({
+            success: false,
+            message: "Cannot delete admin user",
+          });
+        }
+
+        const result = await usersCollection.deleteOne({
+          _id: new ObjectId(userId),
+        });
+
+        if (result.deletedCount === 0) {
+          return res.status(404).json({
+            success: false,
+            message: "User not found",
+          });
+        }
+
+        res.status(200).json({
+          success: true,
+          message: "User deleted successfully",
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Failed to delete user",
+          error: error.message,
+        });
+      }
+    });
+
+    
+
+  
 
     
     app.listen(port, () => {
