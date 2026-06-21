@@ -1,4 +1,3 @@
-// app/dashboard/seller/my-products/page.jsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -216,6 +215,14 @@ export default function MyProducts() {
     p.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Calculate product counts by status
+  const totalProducts = products.length;
+  const approvedCount = products.filter(p => p.adminStatus === "approved" || !p.adminStatus).length;
+  const pendingCount = products.filter(p => p.adminStatus === "pending").length;
+  const rejectedCount = products.filter(p => p.adminStatus === "rejected").length;
+  const availableCount = products.filter(p => p.status === "available").length;
+  const soldCount = products.filter(p => p.status === "sold").length;
+
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -236,6 +243,30 @@ export default function MyProducts() {
             Add New Product
           </Button>
         </Link>
+      </div>
+
+      {/* Product Statistics Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+        <div className="bg-white rounded-xl p-4 border border-gray-100 text-center hover:shadow-md transition">
+          <p className="text-2xl font-bold text-gray-900">{totalProducts}</p>
+          <p className="text-xs text-gray-500">Total Products</p>
+        </div>
+        <div className="bg-green-50 rounded-xl p-4 border border-green-100 text-center hover:shadow-md transition">
+          <p className="text-2xl font-bold text-green-600">{approvedCount}</p>
+          <p className="text-xs text-green-600">Approved</p>
+        </div>
+        <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-100 text-center hover:shadow-md transition">
+          <p className="text-2xl font-bold text-yellow-600">{pendingCount}</p>
+          <p className="text-xs text-yellow-600">Pending</p>
+        </div>
+        <div className="bg-red-50 rounded-xl p-4 border border-red-100 text-center hover:shadow-md transition">
+          <p className="text-2xl font-bold text-red-600">{rejectedCount}</p>
+          <p className="text-xs text-red-600">Rejected</p>
+        </div>
+        <div className="bg-blue-50 rounded-xl p-4 border border-blue-100 text-center hover:shadow-md transition">
+          <p className="text-2xl font-bold text-blue-600">{availableCount}</p>
+          <p className="text-xs text-blue-600">In Stock</p>
+        </div>
       </div>
 
       <div className="mb-4">
@@ -402,7 +433,7 @@ export default function MyProducts() {
         </div>
       )}
 
-      {/* Edit Modal */}
+      {/* Edit Modal - Same as before */}
       {isEditModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto shadow-2xl">

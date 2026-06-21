@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@heroui/react";
 import { useSession } from "@/lib/auth-client";
 import { addToWishlist, removeFromWishlist, checkWishlist } from "@/lib/api/wishlist";
+import { getUserById } from "@/lib/api/user";
 import toast from "react-hot-toast";
 
 const formatPrice = (price) => {
@@ -20,17 +21,35 @@ export default function ProductCard({ product }) {
   const { data: session } = useSession();
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [userData, setUserData] = useState(null);
 
   const userRole = session?.user?.role;
   const isBuyer = userRole === "buyer";
 
   const isProductVisible = !product.adminStatus || product.adminStatus === "approved";
 
+
   useEffect(() => {
-    if (session?.user && isBuyer && isProductVisible) {
+    const fetchUserData = async () => {
+      if (session?.user?.id) {
+        try {
+          const data = await getUserById(session.user.id);
+          if (data.success) {
+            setUserData(data.data);
+          }
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+        }
+      }
+    };
+    fetchUserData();
+  }, [session]);
+
+  useEffect(() => {
+    if (session?.user && isBuyer && isProductVisible && !userData?.isBlocked) {
       checkWishlistStatus();
     }
-  }, [session, product._id, isBuyer, isProductVisible]);
+  }, [session, product._id, isBuyer, isProductVisible, userData]);
 
   const checkWishlistStatus = async () => {
     try {
@@ -49,6 +68,12 @@ export default function ProductCard({ product }) {
 
     if (!session?.user) {
       toast.error("Please login to add to wishlist");
+      return;
+    }
+
+
+    if (userData?.isBlocked) {
+      toast.error("Your account has been blocked. Please contact support.");
       return;
     }
 
@@ -112,7 +137,6 @@ export default function ProductCard({ product }) {
             {product.stock > 0 ? `${product.stock} in stock` : "Out of Stock"}
           </div>
 
-          {/* Admin Status Badge - Only show if not approved */}
           {product.adminStatus && product.adminStatus !== "approved" && (
             <div
               className={`absolute top-2 right-2 text-white text-xs px-2 py-1 rounded-full ${
@@ -131,7 +155,6 @@ export default function ProductCard({ product }) {
         </div>
       </Link>
 
-      {/* Content Section */}
       <div className="p-4 flex flex-col flex-1">
         <Link href={`/products/${product._id}`} className="block flex-1">
           <h3 className="font-semibold text-gray-900 text-sm mb-1 line-clamp-1 hover:text-emerald-600 transition">
@@ -146,7 +169,6 @@ export default function ProductCard({ product }) {
           </div>
         </Link>
 
-        {/* View Details + Wishlist Buttons */}
         <div className="flex gap-2">
           <Link href={`/products/${product._id}`} className="flex-1">
             <Button
@@ -157,8 +179,8 @@ export default function ProductCard({ product }) {
             </Button>
           </Link>
 
-          {/* Wishlist Button - Only for buyers and visible products */}
-          {isBuyer && isProductVisible && (
+
+          {isBuyer && isProductVisible && !userData?.isBlocked && (
             <button
               onClick={handleWishlistToggle}
               disabled={isLoading}

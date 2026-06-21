@@ -99,16 +99,6 @@ export default function AdminManageProducts() {
     }
   };
 
-  const getStatusIcon = (status) => {
-    if (status === "approved") {
-      return <CheckCircle className="w-4 h-4 text-green-500" />;
-    } else if (status === "rejected") {
-      return <XCircle className="w-4 h-4 text-red-500" />;
-    } else {
-      return <Clock className="w-4 h-4 text-yellow-500" />;
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -160,72 +150,106 @@ export default function AdminManageProducts() {
           <p className="text-sm">Try adjusting your search or filter</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredProducts.map((product) => (
-            <Card key={product._id} className="p-4 border border-gray-100 hover:shadow-lg transition">
-              <div className="relative h-40 bg-gray-100 rounded-lg overflow-hidden">
-                {product.images && product.images.length > 0 ? (
-                  <img src={product.images[0]} alt={product.title} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400">
-                    <Package className="w-8 h-8" />
-                  </div>
-                )}
-                <div className="absolute top-2 right-2">
-                  {getStatusBadge(product.adminStatus || "pending")}
-                </div>
-                <div className="absolute top-2 left-2">
-                  {getStatusIcon(product.adminStatus || "pending")}
-                </div>
-              </div>
-              <div className="mt-3">
-                <h3 className="font-semibold text-gray-900 line-clamp-1">{product.title}</h3>
-                <p className="text-sm text-gray-500">{product.category}</p>
-                <p className="text-lg font-bold text-emerald-600 mt-1">{formatPrice(product.price)}</p>
-                <p className="text-sm text-gray-500">Seller: {product.sellerInfo?.name || "Unknown"}</p>
-                <p className="text-xs text-gray-400">Stock: {product.stock || 0}</p>
-              </div>
-              <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
-                <Link href={`/products/${product._id}`} className="flex-1">
-                  <Button size="sm" variant="bordered" className="w-full border-emerald-500 text-emerald-600">
-                    <Eye className="w-4 h-4 mr-1" /> View
-                  </Button>
-                </Link>
-                
-                {product.adminStatus !== "approved" && (
-                  <Button
-                    size="sm"
-                    variant="light"
-                    onClick={() => openActionModal(product, "Approve")}
-                    className="text-green-600 hover:bg-green-50"
-                  >
-                    <CheckCircle className="w-4 h-4" />
-                  </Button>
-                )}
-                
-                {product.adminStatus !== "rejected" && (
-                  <Button
-                    size="sm"
-                    variant="light"
-                    onClick={() => openActionModal(product, "Reject")}
-                    className="text-red-600 hover:bg-red-50"
-                  >
-                    <XCircle className="w-4 h-4" />
-                  </Button>
-                )}
-                
-                <Button
-                  size="sm"
-                  variant="light"
-                  color="danger"
-                  onClick={() => openActionModal(product, "Delete")}
-                  className="text-red-600 hover:bg-red-50"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </Card>
-          ))}
+        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Seller</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredProducts.map((product) => (
+                  <tr key={product._id} className="hover:bg-gray-50 transition">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                          {product.images && product.images.length > 0 ? (
+                            <img src={product.images[0]} alt={product.title} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Package className="w-5 h-5 text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900 line-clamp-1">{product.title}</p>
+                          <p className="text-xs text-gray-400">{product.condition}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-sm text-gray-600">{product.category}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="font-semibold text-emerald-600">{formatPrice(product.price)}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-sm text-gray-700">{product.sellerInfo?.name || "Unknown"}</p>
+                      <p className="text-xs text-gray-400">Stock: {product.stock || 0}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      {getStatusBadge(product.adminStatus || "pending")}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <Link href={`/products/${product._id}`}>
+                          <Button
+                            size="sm"
+                            variant="light"
+                            isIconOnly
+                            className="min-w-8 h-8 text-blue-600 hover:bg-blue-50"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </Link>
+                        
+                        {product.adminStatus !== "approved" && (
+                          <Button
+                            size="sm"
+                            variant="light"
+                            isIconOnly
+                            onClick={() => openActionModal(product, "Approve")}
+                            className="min-w-8 h-8 text-green-600 hover:bg-green-50"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </Button>
+                        )}
+                        
+                        {product.adminStatus !== "rejected" && (
+                          <Button
+                            size="sm"
+                            variant="light"
+                            isIconOnly
+                            onClick={() => openActionModal(product, "Reject")}
+                            className="min-w-8 h-8 text-red-600 hover:bg-red-50"
+                          >
+                            <XCircle className="w-4 h-4" />
+                          </Button>
+                        )}
+                        
+                        <Button
+                          size="sm"
+                          variant="light"
+                          isIconOnly
+                          color="danger"
+                          onClick={() => openActionModal(product, "Delete")}
+                          className="min-w-8 h-8 text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -262,13 +286,15 @@ export default function AdminManageProducts() {
 
             <div className="py-2">
               <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                {selectedProduct.images && selectedProduct.images.length > 0 ? (
-                  <img src={selectedProduct.images[0]} alt={selectedProduct.title} className="w-12 h-12 rounded object-cover" />
-                ) : (
-                  <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
-                    <Package className="w-6 h-6 text-gray-400" />
-                  </div>
-                )}
+                <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                  {selectedProduct.images && selectedProduct.images.length > 0 ? (
+                    <img src={selectedProduct.images[0]} alt={selectedProduct.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Package className="w-5 h-5 text-gray-400" />
+                    </div>
+                  )}
+                </div>
                 <div>
                   <p className="font-medium text-gray-900">{selectedProduct.title}</p>
                   <p className="text-sm text-gray-500">{formatPrice(selectedProduct.price)}</p>

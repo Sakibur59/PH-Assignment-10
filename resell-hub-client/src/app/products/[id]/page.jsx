@@ -152,6 +152,11 @@ export default function ProductDetailsPage() {
       return;
     }
 
+    if (userData?.isBlocked) {
+      toast.error("Your account has been blocked. Please contact support.");
+      return;
+    }
+
     if (session.user?.role === "seller") {
       toast.error("Only buyers can add items to wishlist");
       return;
@@ -207,7 +212,6 @@ export default function ProductDetailsPage() {
       router.push("/auth/signin");
       return;
     }
-
 
     if (userData?.isBlocked) {
       toast.error("Your account has been blocked. Please contact support.");
@@ -488,6 +492,13 @@ export default function ProductDetailsPage() {
                     className="flex-1 bg-gray-400 text-white h-14 text-xl font-semibold rounded-xl cursor-not-allowed"
                   >
                     You cannot buy your own product
+                  </Button>
+                ) : !session?.user ? (
+                  <Button
+                    onClick={() => router.push("/auth/signin")}
+                    className="flex-1 bg-gray-400 text-white h-14 text-xl font-semibold rounded-xl cursor-not-allowed"
+                  >
+                    Please login to purchase
                   </Button>
                 ) : session?.user?.role !== "buyer" ? (
                   <Button

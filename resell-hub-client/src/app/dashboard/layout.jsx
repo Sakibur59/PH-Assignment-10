@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { signOut } from "@/lib/auth-client";
+import { getUserById } from "@/lib/api/user";
 
 function UnauthorizedAccess() {
   const router = useRouter();
@@ -90,29 +91,30 @@ export default function DashboardLayout({ children }) {
     }
 
     if (!session?.user) {
-      console.log("No user, redirecting to signin");
       router.replace("/auth/signin");
       return;
     }
+
+    // Check if user is blocked
+    const checkBlocked = async () => {
+      try {
+        const userData = await getUserById(session.user.id);
+        if (userData.success && userData.data?.isBlocked) {
+          router.replace("/blocked");
+          return;
+        }
+      } catch (error) {
+        console.error("Error checking blocked status:", error);
+      }
+    };
+    checkBlocked();
 
     const role = session.user?.role || "buyer";
     setUserRole(role);
 
     const path = pathname || "";
 
-    if (path === "/dashboard") {
-      if (role === "buyer") {
-        router.replace("/dashboard/buyer");
-        return;
-      } else if (role === "seller") {
-        router.replace("/dashboard/seller");
-        return;
-      } else if (role === "admin") {
-        router.replace("/dashboard/admin");
-        return;
-      }
-    }
-
+    // Role-based access logic
     let authorized = false;
 
     if (role === "admin") {
@@ -120,8 +122,7 @@ export default function DashboardLayout({ children }) {
     } else if (role === "buyer") {
       authorized = path === "/dashboard" || path.startsWith("/dashboard/buyer");
     } else if (role === "seller") {
-      authorized =
-        path === "/dashboard" || path.startsWith("/dashboard/seller");
+      authorized = path === "/dashboard" || path.startsWith("/dashboard/seller");
     }
 
     if (authorized) {
@@ -141,65 +142,25 @@ export default function DashboardLayout({ children }) {
     const roleItems = {
       buyer: [
         { label: "Overview", href: "/dashboard/buyer", icon: LayoutDashboard },
-        {
-          label: "My Orders",
-          href: "/dashboard/buyer/orders",
-          icon: ShoppingBag,
-        },
+        { label: "My Orders", href: "/dashboard/buyer/orders", icon: ShoppingBag },
         { label: "Wishlist", href: "/dashboard/buyer/wishlist", icon: Heart },
-        {
-          label: "Payment History",
-          href: "/dashboard/buyer/payments",
-          icon: CreditCard,
-        },
+        { label: "Payment History", href: "/dashboard/buyer/payments", icon: CreditCard },
         { label: "Profile", href: "/dashboard/buyer/profile", icon: User },
       ],
       seller: [
         { label: "Overview", href: "/dashboard/seller", icon: LayoutDashboard },
-        {
-          label: "Add Product",
-          href: "/dashboard/seller/add-product",
-          icon: PlusCircle,
-        },
-        {
-          label: "My Products",
-          href: "/dashboard/seller/my-products",
-          icon: Package,
-        },
-        {
-          label: "Manage Orders",
-          href: "/dashboard/seller/manage-orders",
-          icon: ClipboardList,
-        },
-        {
-          label: "Sales Analytics",
-          href: "/dashboard/seller/sales-analytics",
-          icon: BarChart3,
-        },
+        { label: "Add Product", href: "/dashboard/seller/add-product", icon: PlusCircle },
+        { label: "My Products", href: "/dashboard/seller/my-products", icon: Package },
+        { label: "Manage Orders", href: "/dashboard/seller/manage-orders", icon: ClipboardList },
+        { label: "Sales Analytics", href: "/dashboard/seller/sales-analytics", icon: BarChart3 },
         { label: "Profile", href: "/dashboard/seller/profile", icon: User },
       ],
       admin: [
         { label: "Overview", href: "/dashboard/admin", icon: LayoutDashboard },
-        {
-          label: "Manage Users",
-          href: "/dashboard/admin/manage-users",
-          icon: Users,
-        },
-        {
-          label: "Manage Products",
-          href: "/dashboard/admin/manage-products",
-          icon: Package,
-        },
-        {
-          label: "Manage Orders",
-          href: "/dashboard/admin/manage-orders",
-          icon: ClipboardList,
-        },
-        {
-          label: "Platform Analytics",
-          href: "/dashboard/admin/platform-analytics",
-          icon: TrendingUp,
-        },
+        { label: "Manage Users", href: "/dashboard/admin/manage-users", icon: Users },
+        { label: "Manage Products", href: "/dashboard/admin/manage-products", icon: Package },
+        { label: "Manage Orders", href: "/dashboard/admin/manage-orders", icon: ClipboardList },
+        { label: "Platform Analytics", href: "/dashboard/admin/platform-analytics", icon: TrendingUp },
       ],
     };
 
@@ -216,9 +177,9 @@ export default function DashboardLayout({ children }) {
     ) {
       return pathname === href;
     }
-
     return pathname.startsWith(href);
   };
+
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -255,21 +216,15 @@ export default function DashboardLayout({ children }) {
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className="p-2 rounded-lg hover:bg-gray-100"
         >
-          {isMobileMenuOpen ? (
-            <X className="w-6 h-6" />
-          ) : (
-            <Menu className="w-6 h-6" />
-          )}
+          {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
       </div>
 
-      <aside
-        className={`
+      <aside className={`
         fixed top-0 left-0 z-40 h-full w-64 bg-white border-r border-gray-200 transition-transform duration-300
         ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
         lg:translate-x-0
-      `}
-      >
+      `}>
         <div className="hidden lg:flex items-center h-16 px-6 border-b border-gray-200">
           <Link href="/" className="text-xl font-bold text-black">
             ReSell <span className="text-emerald-400">Hub</span>
@@ -292,15 +247,11 @@ export default function DashboardLayout({ children }) {
               <p className="text-xs text-gray-500 truncate">
                 {session.user.email}
               </p>
-              <span
-                className={`inline-block text-[10px] font-medium px-2 py-0.5 rounded-full mt-0.5 ${
-                  userRole === "seller"
-                    ? "bg-amber-100 text-amber-700"
-                    : userRole === "admin"
-                      ? "bg-purple-100 text-purple-700"
-                      : "bg-blue-100 text-blue-700"
-                }`}
-              >
+              <span className={`inline-block text-[10px] font-medium px-2 py-0.5 rounded-full mt-0.5 ${
+                userRole === "seller" ? "bg-amber-100 text-amber-700" :
+                userRole === "admin" ? "bg-purple-100 text-purple-700" :
+                "bg-blue-100 text-blue-700"
+              }`}>
                 {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
               </span>
             </div>
@@ -318,16 +269,13 @@ export default function DashboardLayout({ children }) {
                 onClick={() => setIsMobileMenuOpen(false)}
                 className={`
                   flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200
-                  ${
-                    active
-                      ? "bg-emerald-50 text-emerald-600 font-medium"
-                      : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                  ${active 
+                    ? "bg-emerald-50 text-emerald-600 font-medium" 
+                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                   }
                 `}
               >
-                <Icon
-                  className={`w-5 h-5 ${active ? "text-emerald-500" : "text-gray-400"}`}
-                />
+                <Icon className={`w-5 h-5 ${active ? "text-emerald-500" : "text-gray-400"}`} />
                 <span className="text-sm">{item.label}</span>
                 {active && (
                   <div className="ml-auto w-1 h-8 bg-emerald-500 rounded-full" />
@@ -346,13 +294,11 @@ export default function DashboardLayout({ children }) {
         </nav>
       </aside>
 
-      <main
-        className={`
+      <main className={`
         min-h-screen transition-all duration-300
         lg:ml-64
         ${isMobileMenuOpen ? "blur-sm" : ""}
-      `}
-      >
+      `}>
         <div className="h-16 lg:hidden" />
         <div className="p-4 sm:p-6 lg:p-8">{children}</div>
       </main>
