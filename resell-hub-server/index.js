@@ -968,7 +968,7 @@ async function run() {
     app.put("/api/users/:userId", async (req, res) => {
       try {
         const { userId } = req.params;
-        const { name, phone, address,location } = req.body;
+        const { name, phone, address, location } = req.body;
 
         if (!ObjectId.isValid(userId)) {
           return res.status(400).json({
@@ -1029,7 +1029,7 @@ async function run() {
         });
       }
     });
- app.post("/api/products", async (req, res) => {
+    app.post("/api/products", async (req, res) => {
       try {
         const {
           title,
@@ -1116,54 +1116,62 @@ async function run() {
       }
     });
 
-   // Get seller's orders
-app.get("/api/seller/orders/:userId", async (req, res) => {
-  try {
-    const { userId } = req.params;
+    // Get seller's orders
+    app.get("/api/seller/orders/:userId", async (req, res) => {
+      try {
+        const { userId } = req.params;
 
-    const orders = await ordersCollection
-      .find({ sellerId: userId })
-      .sort({ createdAt: -1 })
-      .toArray();
+        const orders = await ordersCollection
+          .find({ sellerId: userId })
+          .sort({ createdAt: -1 })
+          .toArray();
 
-    const ordersWithDetails = await Promise.all(
-      orders.map(async (order) => {
-        const product = await productsCollection.findOne({
-          _id: new ObjectId(order.productId),
-        });
-        const buyer = await usersCollection.findOne(
-          { _id: new ObjectId(order.userId) },
-          { projection: { name: 1, email: 1, phone: 1, address: 1, location: 1 } }
+        const ordersWithDetails = await Promise.all(
+          orders.map(async (order) => {
+            const product = await productsCollection.findOne({
+              _id: new ObjectId(order.productId),
+            });
+            const buyer = await usersCollection.findOne(
+              { _id: new ObjectId(order.userId) },
+              {
+                projection: {
+                  name: 1,
+                  email: 1,
+                  phone: 1,
+                  address: 1,
+                  location: 1,
+                },
+              },
+            );
+            return {
+              ...order,
+              productDetails: product || null,
+              buyerInfo: buyer
+                ? {
+                    name: buyer.name,
+                    email: buyer.email,
+                    phone: buyer.phone || "N/A",
+                    address: buyer.address || "N/A",
+                    location: buyer.location || "N/A",
+                  }
+                : null,
+            };
+          }),
         );
-        return {
-          ...order,
-          productDetails: product || null,
-          buyerInfo: buyer
-            ? {
-                name: buyer.name,
-                email: buyer.email,
-                phone: buyer.phone || "N/A",
-                address: buyer.address || "N/A",
-                location: buyer.location || "N/A",
-              }
-            : null,
-        };
-      })
-    );
 
-    res.status(200).json({
-      success: true,
-      data: ordersWithDetails,
+        res.status(200).json({
+          success: true,
+          data: ordersWithDetails,
+        });
+      } catch (error) {
+        console.error("Error fetching seller orders:", error);
+        res.status(500).json({
+          success: false,
+          message: "Failed to fetch orders",
+          error: error.message,
+        });
+      }
     });
-  } catch (error) {
-    console.error("Error fetching seller orders:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch orders",
-      error: error.message,
-    });
-  }
-});
 
     // Update product (PUT)
     app.put("/api/products/:id", async (req, res) => {
@@ -1384,6 +1392,159 @@ app.get("/api/seller/orders/:userId", async (req, res) => {
         });
       }
     });
+
+    // ADMIN API
+    //get admin stats
+    app.get("/api/admin/stats", async (req, res) => {
+  try {
+    const totalUsers = await usersCollection.countDocuments() || 0;
+    const totalProducts = await productsCollection.countDocuments() || 0;
+    const totalOrders = await ordersCollection.countDocuments() || 0;
+    
+    let totalRevenue = 0;
+    try {
+      const deliveredOrders = await ordersCollection.find({ orderStatus: "delivered" }).toArray();
+      if (deliveredOrders && deliveredOrders.length > 0) {
+        totalRevenue = deliveredOrders.reduce((sum, o) => {
+          const amount = o.totalAmount || 0;
+          return sum + (typeof amount === 'number' ? amount : 0);
+        }, 0);
+      }
+    } catch (e) {
+      console.log("Revenue calculation skipped:", e.message);
+    }
+
+    let pendingOrders = 0;
+    try {
+      pendingOrders = await ordersCollection.countDocuments({ 
+        orderStatus: { $in: ["pending", "confirmed"] } 
+      }) || 0;
+    } catch (e) {
+      console.log("Pending orders count skipped:", e.message);
+    }
+
+
+    let activeUsersCount = 0;
+    try {
+      const activeUsers = await ordersCollection.distinct("userId");
+      activeUsersCount = activeUsers ? activeUsers.length : 0;
+      console.log("Active users (distinct):", activeUsersCount);
+      console.log("Distinct userIds:", activeUsers);
+    } catch (e) {
+      console.error("Error getting active users:", e.message);
+      
+
+      try {
+        const result = await ordersCollection.aggregate([
+          { $group: { _id: "$userId" } },
+          { $count: "total" }
+        ]).toArray();
+        activeUsersCount = result.length > 0 ? result[0].total : 0;
+        console.log("Active users (aggregate fallback):", activeUsersCount);
+      } catch (e2) {
+        console.error("Aggregate also failed:", e2.message);
+        activeUsersCount = 0;
+      }
+    }
+
+    console.log("Admin Stats Summary:", {
+      totalUsers,
+      totalProducts,
+      totalOrders,
+      totalRevenue,
+      pendingOrders,
+      activeUsersCount
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalUsers,
+        totalProducts,
+        totalOrders,
+        totalRevenue,
+        pendingOrders,
+        activeUsersCount,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching admin stats:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch stats",
+      error: error.message,
+    });
+  }
+});
+    // Get all users (for admin)
+    app.get("/api/admin/users", async (req, res) => {
+      try {
+        const users = await usersCollection
+          .find({})
+          .sort({ createdAt: -1 })
+          .toArray();
+
+        res.status(200).json({
+          success: true,
+          data: users,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Failed to fetch users",
+          error: error.message,
+        });
+      }
+    });
+
+    // Update user status (block/unblock)
+    app.patch("/api/admin/users/:userId/status", async (req, res) => {
+      try {
+        const { userId } = req.params;
+        const { isBlocked } = req.body;
+
+        if (!ObjectId.isValid(userId)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid user ID",
+          });
+        }
+
+        const result = await usersCollection.updateOne(
+          { _id: new ObjectId(userId) },
+          {
+            $set: {
+              isBlocked: isBlocked,
+              updatedAt: new Date().toISOString(),
+            },
+          },
+        );
+
+        if (result.matchedCount === 0) {
+          return res.status(404).json({
+            success: false,
+            message: "User not found",
+          });
+        }
+
+        res.status(200).json({
+          success: true,
+          message: isBlocked
+            ? "User blocked successfully"
+            : "User unblocked successfully",
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Failed to update user status",
+          error: error.message,
+        });
+      }
+    });
+
+
+
+    
     app.listen(port, () => {
       console.log(`Server is running on port ${port}`);
     });
