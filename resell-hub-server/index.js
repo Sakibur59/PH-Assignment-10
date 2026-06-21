@@ -1030,66 +1030,67 @@ async function run() {
       }
     });
     app.post("/api/products", async (req, res) => {
-      try {
-        const {
-          title,
-          category,
-          condition,
-          price,
-          stock,
-          description,
-          images,
-          sellerInfo,
-          status,
-        } = req.body;
+  try {
+    const {
+      title,
+      category,
+      condition,
+      price,
+      stock,
+      description,
+      images,
+      sellerInfo,
+      status,
+    } = req.body;
 
-        if (!title || !category || !price || !sellerInfo) {
-          return res.status(400).json({
-            success: false,
-            message: "Title, category, price, and seller info are required",
-          });
-        }
+    if (!title || !category || !price || !sellerInfo) {
+      return res.status(400).json({
+        success: false,
+        message: "Title, category, price, and seller info are required",
+      });
+    }
 
-        const productData = {
-          title,
-          category,
-          condition: condition || "Good",
-          price: parseFloat(price),
-          stock: parseInt(stock) || 1,
-          description: description || "",
-          images: images || [],
-          sellerInfo: {
-            userId: sellerInfo.userId,
-            name: sellerInfo.name,
-            email: sellerInfo.email,
-            phone: sellerInfo.phone || "",
-          },
-          status: status || "available",
-          averageRating: 0,
-          totalReviews: 0,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
+    const productData = {
+      title,
+      category,
+      condition: condition || "Good",
+      price: parseFloat(price),
+      stock: parseInt(stock) || 1,
+      description: description || "",
+      images: images || [],
+      sellerInfo: {
+        userId: sellerInfo.userId,
+        name: sellerInfo.name,
+        email: sellerInfo.email,
+        phone: sellerInfo.phone || "",
+      },
+      status: status || "available",
+      adminStatus: "pending",
+      averageRating: 0,
+      totalReviews: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
 
-        const result = await productsCollection.insertOne(productData);
+    const result = await productsCollection.insertOne(productData);
 
-        res.status(201).json({
-          success: true,
-          message: "Product created successfully",
-          data: {
-            _id: result.insertedId,
-            ...productData,
-          },
-        });
-      } catch (error) {
-        console.error("Error creating product:", error);
-        res.status(500).json({
-          success: false,
-          message: "Failed to create product",
-          error: error.message,
-        });
-      }
+    res.status(201).json({
+      success: true,
+      message: "Product created successfully. Waiting for admin approval.",
+      data: {
+        _id: result.insertedId,
+        ...productData,
+      },
     });
+  } catch (error) {
+    console.error("Error creating product:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to create product",
+      error: error.message,
+    });
+  }
+});
     // SELLER API
 
     // Get seller's products
@@ -1497,52 +1498,7 @@ async function run() {
       }
     });
 
-    // Update user status (block/unblock)
-    app.patch("/api/admin/users/:userId/status", async (req, res) => {
-      try {
-        const { userId } = req.params;
-        const { isBlocked } = req.body;
-
-        if (!ObjectId.isValid(userId)) {
-          return res.status(400).json({
-            success: false,
-            message: "Invalid user ID",
-          });
-        }
-
-        const result = await usersCollection.updateOne(
-          { _id: new ObjectId(userId) },
-          {
-            $set: {
-              isBlocked: isBlocked,
-              updatedAt: new Date().toISOString(),
-            },
-          },
-        );
-
-        if (result.matchedCount === 0) {
-          return res.status(404).json({
-            success: false,
-            message: "User not found",
-          });
-        }
-
-        res.status(200).json({
-          success: true,
-          message: isBlocked
-            ? "User blocked successfully"
-            : "User unblocked successfully",
-        });
-      } catch (error) {
-        res.status(500).json({
-          success: false,
-          message: "Failed to update user status",
-          error: error.message,
-        });
-      }
-    });
-
-app.patch("/api/admin/users/:userId/status", async (req, res) => {
+ app.patch("/api/admin/users/:userId/status", async (req, res) => {
   try {
     const { userId } = req.params;
     const { isBlocked, role } = req.body;
@@ -1554,7 +1510,6 @@ app.patch("/api/admin/users/:userId/status", async (req, res) => {
       });
     }
 
-
     const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
     if (!user) {
       return res.status(404).json({
@@ -1563,13 +1518,6 @@ app.patch("/api/admin/users/:userId/status", async (req, res) => {
       });
     }
 
- 
-    if (user.role === "admin" && role && role !== "admin") {
-      return res.status(403).json({
-        success: false,
-        message: "Cannot change admin role",
-      });
-    }
 
     const updateData = {
       updatedAt: new Date().toISOString()
@@ -1595,9 +1543,16 @@ app.patch("/api/admin/users/:userId/status", async (req, res) => {
       });
     }
 
+    const updatedUser = await usersCollection.findOne({
+      _id: new ObjectId(userId),
+    });
+
     res.status(200).json({
       success: true,
-      message: "User updated successfully",
+      message: isBlocked !== undefined 
+        ? (isBlocked ? "User blocked successfully" : "User unblocked successfully")
+        : "User role updated successfully",
+      data: updatedUser,
     });
   } catch (error) {
     console.error("Error updating user:", error);
@@ -1656,7 +1611,113 @@ app.patch("/api/admin/users/:userId/status", async (req, res) => {
       }
     });
 
-    
+    // Get all products (for admin)
+    app.get("/api/admin/products", async (req, res) => {
+      try {
+        const products = await productsCollection
+          .find({})
+          .sort({ createdAt: -1 })
+          .toArray();
+
+        res.status(200).json({
+          success: true,
+          data: products,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Failed to fetch products",
+          error: error.message,
+        });
+      }
+    });
+
+    // Update product status (approve/reject)
+    app.patch("/api/admin/products/:productId/status", async (req, res) => {
+      try {
+        const { productId } = req.params;
+        const { status } = req.body;
+
+        if (!ObjectId.isValid(productId)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid product ID",
+          });
+        }
+
+        const validStatuses = ["approved", "rejected", "pending"];
+        if (!validStatuses.includes(status)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid status",
+          });
+        }
+
+        const result = await productsCollection.updateOne(
+          { _id: new ObjectId(productId) },
+          {
+            $set: {
+              adminStatus: status,
+              updatedAt: new Date().toISOString(),
+            },
+          },
+        );
+
+        if (result.matchedCount === 0) {
+          return res.status(404).json({
+            success: false,
+            message: "Product not found",
+          });
+        }
+
+        res.status(200).json({
+          success: true,
+          message: `Product ${status} successfully`,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Failed to update product status",
+          error: error.message,
+        });
+      }
+    });
+
+    // Delete product (admin)
+    app.delete("/api/admin/products/:productId", async (req, res) => {
+      try {
+        const { productId } = req.params;
+
+        if (!ObjectId.isValid(productId)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid product ID",
+          });
+        }
+
+        const result = await productsCollection.deleteOne({
+          _id: new ObjectId(productId),
+        });
+
+        if (result.deletedCount === 0) {
+          return res.status(404).json({
+            success: false,
+            message: "Product not found",
+          });
+        }
+
+        res.status(200).json({
+          success: true,
+          message: "Product deleted successfully",
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Failed to delete product",
+          error: error.message,
+        });
+      }
+    });
 
   
 
