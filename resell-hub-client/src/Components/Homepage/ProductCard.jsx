@@ -24,11 +24,13 @@ export default function ProductCard({ product }) {
   const userRole = session?.user?.role;
   const isBuyer = userRole === "buyer";
 
+  const isProductVisible = !product.adminStatus || product.adminStatus === "approved";
+
   useEffect(() => {
-    if (session?.user && isBuyer) {
+    if (session?.user && isBuyer && isProductVisible) {
       checkWishlistStatus();
     }
-  }, [session, product._id, isBuyer]);
+  }, [session, product._id, isBuyer, isProductVisible]);
 
   const checkWishlistStatus = async () => {
     try {
@@ -50,7 +52,6 @@ export default function ProductCard({ product }) {
       return;
     }
 
-  
     if (!isBuyer) {
       toast.error("Only buyers can add items to wishlist");
       return;
@@ -101,6 +102,8 @@ export default function ProductCard({ product }) {
               No Image
             </div>
           )}
+          
+          {/* Stock Badge */}
           <div
             className={`absolute top-2 left-2 text-white text-xs px-2 py-1 rounded-full ${
               product.stock > 0 ? "bg-emerald-500" : "bg-red-500"
@@ -108,6 +111,23 @@ export default function ProductCard({ product }) {
           >
             {product.stock > 0 ? `${product.stock} in stock` : "Out of Stock"}
           </div>
+
+          {/* Admin Status Badge - Only show if not approved */}
+          {product.adminStatus && product.adminStatus !== "approved" && (
+            <div
+              className={`absolute top-2 right-2 text-white text-xs px-2 py-1 rounded-full ${
+                product.adminStatus === "pending"
+                  ? "bg-yellow-500"
+                  : product.adminStatus === "rejected"
+                  ? "bg-red-500"
+                  : "bg-green-500"
+              }`}
+            >
+              {product.adminStatus === "pending" && "⏳ Pending"}
+              {product.adminStatus === "rejected" && "❌ Rejected"}
+              {product.adminStatus === "approved" && "✅ Approved"}
+            </div>
+          )}
         </div>
       </Link>
 
@@ -137,8 +157,8 @@ export default function ProductCard({ product }) {
             </Button>
           </Link>
 
-
-          {isBuyer && (
+          {/* Wishlist Button - Only for buyers and visible products */}
+          {isBuyer && isProductVisible && (
             <button
               onClick={handleWishlistToggle}
               disabled={isLoading}

@@ -1,12 +1,13 @@
+// app/dashboard/seller/my-products/page.jsx
 "use client";
 
 import { useState, useEffect } from "react";
 import { useSession } from "@/lib/auth-client";
 import { getSellerProducts, deleteProduct, updateProduct } from "@/lib/api/seller";
-import { Spinner, Card, Button, Input, Modal } from "@heroui/react";
+import { Spinner, Card, Button, Input } from "@heroui/react";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { Package, Pencil, Trash2, Eye, X, Image as ImageIcon } from "lucide-react";
+import { Package, Pencil, Trash2, Eye, X, Clock, CheckCircle, XCircle, ChevronDown, ChevronUp } from "lucide-react";
 
 const CATEGORIES = ["Electronics", "Furniture", "Vehicles", "Fashion", "Mobile Phones", "Appliances", "Books", "Sports", "Toys", "Games", "Other"];
 const CONDITIONS = ["Excellent", "Good", "Fair"];
@@ -20,11 +21,36 @@ const formatPrice = (price) => {
   }).format(price);
 };
 
+// Admin Status Badge Component
+const AdminStatusBadge = ({ status }) => {
+  if (!status || status === "approved") {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+        <CheckCircle className="w-3 h-3" /> Approved
+      </span>
+    );
+  } else if (status === "pending") {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+        <Clock className="w-3 h-3" /> Pending
+      </span>
+    );
+  } else if (status === "rejected") {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+        <XCircle className="w-3 h-3" /> Rejected
+      </span>
+    );
+  }
+  return null;
+};
+
 export default function MyProducts() {
   const { data: session } = useSession();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [expandedProductId, setExpandedProductId] = useState(null);
 
   // Edit Modal States
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -64,6 +90,10 @@ export default function MyProducts() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleExpand = (productId) => {
+    setExpandedProductId(expandedProductId === productId ? null : productId);
   };
 
   // Open Edit Modal
@@ -228,64 +258,154 @@ export default function MyProducts() {
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="space-y-4">
           {filteredProducts.map((product) => (
-            <Card key={product._id} className="p-4 border border-gray-100 hover:shadow-lg transition">
-              <div className="relative h-48 bg-gray-100 rounded-lg overflow-hidden">
-                {product.images && product.images.length > 0 ? (
-                  <img src={product.images[0]} alt={product.title} className="w-48 h-48 mx-auto object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400">No Image</div>
-                )}
-                <span className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium ${product.status === 'available' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
-                  {product.status}
-                </span>
+            <Card key={product._id} className="border border-gray-100 overflow-hidden">
+              {/* Product Header - Always Visible */}
+              <div 
+                className="p-4 hover:bg-gray-50 transition cursor-pointer"
+                onClick={() => toggleExpand(product._id)}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="flex items-center gap-3 flex-1 min-w-[200px]">
+                    <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                      {product.images && product.images.length > 0 ? (
+                        <img src={product.images[0]} alt={product.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                          <Package className="w-6 h-6" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-900">{product.title}</h3>
+                      <p className="text-sm text-gray-500">{product.category}</p>
+                      <p className="text-lg font-bold text-emerald-600">{formatPrice(product.price)}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Product Status */}
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      product.status === 'available' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
+                    }`}>
+                      {product.status === 'available' ? 'Available' : 'Sold'}
+                    </span>
+                    
+                    {/* Admin Status */}
+                    <AdminStatusBadge status={product.adminStatus} />
+
+                    {/* Expand/Collapse Button */}
+                    <Button
+                      size="sm"
+                      variant="light"
+                      isIconOnly
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleExpand(product._id);
+                      }}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      {expandedProductId === product._id ? (
+                        <ChevronUp className="w-4 h-4" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
               </div>
-              <div className="mt-3">
-                <h3 className="font-semibold text-gray-900 line-clamp-1">{product.title}</h3>
-                <p className="text-sm text-gray-500">{product.category}</p>
-                <p className="text-lg font-bold text-emerald-600 mt-1">{formatPrice(product.price)}</p>
-                <p className="text-sm text-gray-500">Stock: {product.stock}</p>
-              </div>
-              <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
-                <Link href={`/products/${product._id}`} className="flex-1">
-                  <Button size="sm" variant="bordered" className="w-full border-emerald-500 text-emerald-600">
-                    <Eye className="w-4 h-4 mr-1" /> View
-                  </Button>
-                </Link>
-                <Button
-                  size="sm"
-                  variant="bordered"
-                  className="flex-1 border-blue-500 text-blue-600"
-                  onClick={() => openEditModal(product)}
-                >
-                  <Pencil className="w-4 h-4 mr-1" /> Edit
-                </Button>
-                <Button
-                  size="sm"
-                  color="danger"
-                  variant="light"
-                  onClick={() => openDeleteModal(product._id, product.title)}
-                  className="text-red-600"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
+
+              {/* Product Details - Expandable */}
+              {expandedProductId === product._id && (
+                <div className="border-t border-gray-100 p-4 bg-gray-50">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Left Column - Product Info */}
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">
+                        <span className="font-medium">Description:</span> {product.description || "N/A"}
+                      </p>
+                      <p className="text-sm text-gray-600 mb-1">
+                        <span className="font-medium">Condition:</span> {product.condition || "N/A"}
+                      </p>
+                      <p className="text-sm text-gray-600 mb-1">
+                        <span className="font-medium">Stock:</span> {product.stock || 0}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        <span className="font-medium">Status:</span> {product.status || "N/A"}
+                      </p>
+                    </div>
+
+                    {/* Right Column - Seller Info */}
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">
+                        <span className="font-medium">Admin Status:</span> {product.adminStatus || "pending"}
+                      </p>
+                      <p className="text-sm text-gray-600 mb-1">
+                        <span className="font-medium">Created:</span> {product.createdAt ? new Date(product.createdAt).toLocaleDateString() : "N/A"}
+                      </p>
+                      {product.adminStatus === "rejected" && (
+                        <p className="text-sm text-red-600 mt-2">
+                          ⚠️ This product has been rejected by admin.
+                        </p>
+                      )}
+                      {product.adminStatus === "pending" && (
+                        <p className="text-sm text-yellow-600 mt-2">
+                          ⏳ Waiting for admin approval.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200">
+                    <Link href={`/products/${product._id}`} className="flex-1">
+                      <Button size="sm" variant="bordered" className="w-full border-emerald-500 text-emerald-600">
+                        <Eye className="w-4 h-4 mr-1" /> View Details
+                      </Button>
+                    </Link>
+                    
+                    {product.adminStatus !== "rejected" ? (
+                      <Button
+                        size="sm"
+                        variant="bordered"
+                        className="flex-1 border-blue-500 text-blue-600"
+                        onClick={() => openEditModal(product)}
+                      >
+                        <Pencil className="w-4 h-4 mr-1" /> Edit Product
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="bordered"
+                        className="flex-1 border-gray-300 text-gray-400 cursor-not-allowed"
+                        disabled
+                      >
+                        <Pencil className="w-4 h-4 mr-1" /> Edit (Rejected)
+                      </Button>
+                    )}
+                    
+                    <Button
+                      size="sm"
+                      color="danger"
+                      variant="light"
+                      onClick={() => openDeleteModal(product._id, product.title)}
+                      className="text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </Card>
           ))}
         </div>
       )}
 
-      {/* Edit Modal*/}
+      {/* Edit Modal */}
       {isEditModalOpen && (
-        <Modal 
-          isOpen={isEditModalOpen} 
-          onClose={closeEditModal}
-          size="md"
-          backdrop="blur"
-          className="max-w-lg"
-        >
-          <div className="bg-white rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-xl font-bold text-gray-900">Edit Product</h3>
@@ -404,7 +524,6 @@ export default function MyProducts() {
                   </Button>
                 </div>
                 
-                {/* Image Preview */}
                 {editFormData.images.length > 0 && (
                   <div className="flex gap-2 flex-wrap mt-2">
                     {editFormData.images.map((url, index) => (
@@ -460,19 +579,13 @@ export default function MyProducts() {
               </div>
             </form>
           </div>
-        </Modal>
+        </div>
       )}
 
       {/* Delete Confirmation Modal */}
       {isDeleteModalOpen && (
-        <Modal 
-          isOpen={isDeleteModalOpen} 
-          onClose={closeDeleteModal}
-          size="md"
-          backdrop="blur"
-          className="max-w-md"
-        >
-          <div className="bg-white rounded-2xl p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
                 <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -520,7 +633,7 @@ export default function MyProducts() {
               </Button>
             </div>
           </div>
-        </Modal>
+        </div>
       )}
     </div>
   );

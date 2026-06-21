@@ -1,12 +1,12 @@
-
 "use client";
 
 import { useState } from "react";
 import { useSession } from "@/lib/auth-client";
-import { Card, Button, Input, Select, SelectItem, Textarea } from "@heroui/react";
+import { Card, Button, Input } from "@heroui/react";
 import { createProduct } from "@/lib/api/seller";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import { CheckCircle, Clock } from "lucide-react";
 
 const CATEGORIES = ["Electronics", "Furniture", "Vehicles", "Fashion", "Mobile Phones", "Appliances", "Books", "Sports", "Toys", "Games", "Other"];
 const CONDITIONS = ["Excellent", "Good", "Fair"];
@@ -28,10 +28,6 @@ export default function AddProduct() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSelectChange = (name, value) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -73,7 +69,24 @@ export default function AddProduct() {
       const response = await createProduct(productData);
 
       if (response.success) {
-        toast.success("Product added successfully!");
+    
+        toast.success(
+          (t) => (
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <Clock className="w-5 h-5 text-yellow-500" />
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">Product Added Successfully!</p>
+                <p className="text-sm text-gray-600 mt-0.5">
+                  Your product is now pending admin approval. 
+                  You will be notified once it's approved.
+                </p>
+              </div>
+            </div>
+          ),
+          { duration: 5000 }
+        );
         router.push("/dashboard/seller/my-products");
       } else {
         toast.error(response.message || "Failed to add product");
@@ -88,10 +101,21 @@ export default function AddProduct() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900">Add Product</h1>
-      <p className="text-gray-500 mt-1">List a new product for sale</p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Add Product</h1>
+          <p className="text-gray-500 mt-1">List a new product for sale</p>
+        </div>
+        {/* Info Badge */}
+        <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-2">
+          <Clock className="w-4 h-4 text-yellow-600" />
+          <span className="text-sm text-yellow-700">
+            Products require admin approval
+          </span>
+        </div>
+      </div>
 
-      <Card className="mt-6 p-6 border border-gray-100">
+      <Card className="p-6 border border-gray-100">
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Product Title</label>
@@ -209,6 +233,21 @@ export default function AddProduct() {
                 </div>
               ))}
             </div>
+            <p className="text-xs text-gray-400 mt-1">Maximum 4 images. Enter image URL and click Add.</p>
+          </div>
+
+          {/* Info Box - Admin Approval Notice */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <CheckCircle className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-blue-800">Admin Approval Required</p>
+                <p className="text-sm text-blue-600 mt-0.5">
+                  Your product will be reviewed by an admin before it appears on the marketplace.
+                  This process usually takes 24-48 hours.
+                </p>
+              </div>
+            </div>
           </div>
 
           <Button
@@ -216,8 +255,13 @@ export default function AddProduct() {
             isLoading={loading}
             className="w-full bg-emerald-500 text-white hover:bg-emerald-600 h-12 text-lg"
           >
-            Add Product
+            {loading ? "Adding Product..." : "Add Product"}
           </Button>
+
+    
+          <p className="text-xs text-gray-400 text-center mt-2">
+            By adding this product, you agree to our terms and conditions.
+          </p>
         </form>
       </Card>
     </div>

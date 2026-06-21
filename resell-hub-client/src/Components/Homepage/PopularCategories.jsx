@@ -30,28 +30,30 @@ export default function PopularCategories() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        // Fetch all products
-        const data = await getProducts();
-        if (data.success) {
-          // Extract categories with counts
-          const categoryData = await getCategories(data.data);
-          setCategories(categoryData);
-        } else {
-          setError(data.message || "Failed to fetch categories");
-        }
-      } catch (err) {
-        setError("Error fetching categories");
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
+ useEffect(() => {
+  const fetchCategories = async () => {
+    try {
+      const data = await getProducts();
+      if (data.success) {
 
-    fetchCategories();
-  }, []);
+        const approvedProducts = data.data.filter(p => 
+          !p.adminStatus || p.adminStatus === "approved"
+        );
+        const categoryData = await getCategories(approvedProducts);
+        setCategories(categoryData);
+      } else {
+        setError(data.message || "Failed to fetch categories");
+      }
+    } catch (err) {
+      setError("Error fetching categories");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchCategories();
+}, []);
 
   if (loading) {
     return (

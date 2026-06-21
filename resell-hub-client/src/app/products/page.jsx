@@ -16,42 +16,42 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Filter states
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState(categoryParam || "");
   const [selectedCondition, setSelectedCondition] = useState("");
   const [sortBy, setSortBy] = useState("newest");
 
-  // Categories from products
+
   const [categories, setCategories] = useState([]);
 
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        const data = await getProducts();
-        if (data.success) {
-          setProducts(data.data);
-          setFilteredProducts(data.data);
-          
-          // Extract unique categories
-          const uniqueCategories = [...new Set(data.data.map(p => p.category))];
-          setCategories(uniqueCategories);
-        } else {
-          setError(data.message || "Failed to fetch products");
-        }
-      } catch (err) {
-        setError("Error fetching products");
-        console.error(err);
-      } finally {
-        setLoading(false);
+ useEffect(() => {
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const data = await getProducts();
+      if (data.success) {
+
+        const approvedProducts = data.data.filter(p => 
+          !p.adminStatus || p.adminStatus === "approved"
+        );
+        setProducts(approvedProducts);
+        setFilteredProducts(approvedProducts);
+        
+        const uniqueCategories = [...new Set(approvedProducts.map(p => p.category))];
+        setCategories(uniqueCategories);
       }
-    };
+    } catch (err) {
+      setError("Error fetching products");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  fetchProducts();
+}, []);
 
-    fetchProducts();
-  }, []);
 
-  // Apply filters and search
   useEffect(() => {
     let result = [...products];
 
@@ -63,17 +63,17 @@ export default function ProductsPage() {
       );
     }
 
-    // Category filter - from URL or dropdown
+
     if (selectedCategory) {
       result = result.filter(p => p.category === selectedCategory);
     }
 
-    // Condition filter
+
     if (selectedCondition) {
       result = result.filter(p => p.condition === selectedCondition);
     }
 
-    // Sorting
+
     switch (sortBy) {
       case "newest":
         result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));

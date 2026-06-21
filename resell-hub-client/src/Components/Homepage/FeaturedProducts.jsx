@@ -12,26 +12,29 @@ export default function FeaturedProducts({ limit = 6 }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const data = await getProducts();
-        if (data.success) {
-          setProducts(data.data.slice(0, limit));
-        } else {
-          setError(data.message || "Failed to fetch products");
-        }
-      } catch (err) {
-        setError("Error fetching products");
-        console.error(err);
-      } finally {
-        setLoading(false);
+useEffect(() => {
+  const fetchProducts = async () => {
+    try {
+      const data = await getProducts();
+      if (data.success) {
+
+        const approvedProducts = data.data.filter(p => 
+          !p.adminStatus || p.adminStatus === "approved"
+        );
+        setProducts(approvedProducts.slice(0, limit));
+      } else {
+        setError(data.message || "Failed to fetch products");
       }
-    };
+    } catch (err) {
+      setError("Error fetching products");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchProducts();
-  }, [limit]);
-
+  fetchProducts();
+}, [limit]);
   if (loading) {
     return (
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
