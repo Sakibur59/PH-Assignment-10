@@ -1030,67 +1030,67 @@ async function run() {
       }
     });
     app.post("/api/products", async (req, res) => {
-  try {
-    const {
-      title,
-      category,
-      condition,
-      price,
-      stock,
-      description,
-      images,
-      sellerInfo,
-      status,
-    } = req.body;
+      try {
+        const {
+          title,
+          category,
+          condition,
+          price,
+          stock,
+          description,
+          images,
+          sellerInfo,
+          status,
+        } = req.body;
 
-    if (!title || !category || !price || !sellerInfo) {
-      return res.status(400).json({
-        success: false,
-        message: "Title, category, price, and seller info are required",
-      });
-    }
+        if (!title || !category || !price || !sellerInfo) {
+          return res.status(400).json({
+            success: false,
+            message: "Title, category, price, and seller info are required",
+          });
+        }
 
-    const productData = {
-      title,
-      category,
-      condition: condition || "Good",
-      price: parseFloat(price),
-      stock: parseInt(stock) || 1,
-      description: description || "",
-      images: images || [],
-      sellerInfo: {
-        userId: sellerInfo.userId,
-        name: sellerInfo.name,
-        email: sellerInfo.email,
-        phone: sellerInfo.phone || "",
-      },
-      status: status || "available",
-      adminStatus: "pending",
-      averageRating: 0,
-      totalReviews: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+        const productData = {
+          title,
+          category,
+          condition: condition || "Good",
+          price: parseFloat(price),
+          stock: parseInt(stock) || 1,
+          description: description || "",
+          images: images || [],
+          sellerInfo: {
+            userId: sellerInfo.userId,
+            name: sellerInfo.name,
+            email: sellerInfo.email,
+            phone: sellerInfo.phone || "",
+          },
+          status: status || "available",
+          adminStatus: "pending",
+          averageRating: 0,
+          totalReviews: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
 
-    const result = await productsCollection.insertOne(productData);
+        const result = await productsCollection.insertOne(productData);
 
-    res.status(201).json({
-      success: true,
-      message: "Product created successfully. Waiting for admin approval.",
-      data: {
-        _id: result.insertedId,
-        ...productData,
-      },
+        res.status(201).json({
+          success: true,
+          message: "Product created successfully. Waiting for admin approval.",
+          data: {
+            _id: result.insertedId,
+            ...productData,
+          },
+        });
+      } catch (error) {
+        console.error("Error creating product:", error);
+        res.status(500).json({
+          success: false,
+          message: "Failed to create product",
+          error: error.message,
+        });
+      }
     });
-  } catch (error) {
-    console.error("Error creating product:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to create product",
-      error: error.message,
-    });
-  }
-});
     // SELLER API
 
     // Get seller's products
@@ -1397,86 +1397,86 @@ async function run() {
     // ADMIN API
     //get admin stats
     app.get("/api/admin/stats", async (req, res) => {
-  try {
-    const totalUsers = await usersCollection.countDocuments() || 0;
-    const totalProducts = await productsCollection.countDocuments() || 0;
-    const totalOrders = await ordersCollection.countDocuments() || 0;
-    
-    let totalRevenue = 0;
-    try {
-      const deliveredOrders = await ordersCollection.find({ orderStatus: "delivered" }).toArray();
-      if (deliveredOrders && deliveredOrders.length > 0) {
-        totalRevenue = deliveredOrders.reduce((sum, o) => {
-          const amount = o.totalAmount || 0;
-          return sum + (typeof amount === 'number' ? amount : 0);
-        }, 0);
-      }
-    } catch (e) {
-      console.log("Revenue calculation skipped:", e.message);
-    }
-
-    let pendingOrders = 0;
-    try {
-      pendingOrders = await ordersCollection.countDocuments({ 
-        orderStatus: { $in: ["pending", "confirmed"] } 
-      }) || 0;
-    } catch (e) {
-      console.log("Pending orders count skipped:", e.message);
-    }
-
-
-    let activeUsersCount = 0;
-    try {
-      const activeUsers = await ordersCollection.distinct("userId");
-      activeUsersCount = activeUsers ? activeUsers.length : 0;
-      console.log("Active users (distinct):", activeUsersCount);
-      console.log("Distinct userIds:", activeUsers);
-    } catch (e) {
-      console.error("Error getting active users:", e.message);
-      
-
       try {
-        const result = await ordersCollection.aggregate([
-          { $group: { _id: "$userId" } },
-          { $count: "total" }
-        ]).toArray();
-        activeUsersCount = result.length > 0 ? result[0].total : 0;
-        console.log("Active users (aggregate fallback):", activeUsersCount);
-      } catch (e2) {
-        console.error("Aggregate also failed:", e2.message);
-        activeUsersCount = 0;
+        const totalUsers = (await usersCollection.countDocuments()) || 0;
+        const totalProducts = (await productsCollection.countDocuments()) || 0;
+        const totalOrders = (await ordersCollection.countDocuments()) || 0;
+
+        let totalRevenue = 0;
+        try {
+          const deliveredOrders = await ordersCollection
+            .find({ orderStatus: "delivered" })
+            .toArray();
+          if (deliveredOrders && deliveredOrders.length > 0) {
+            totalRevenue = deliveredOrders.reduce((sum, o) => {
+              const amount = o.totalAmount || 0;
+              return sum + (typeof amount === "number" ? amount : 0);
+            }, 0);
+          }
+        } catch (e) {
+          console.log("Revenue calculation skipped:", e.message);
+        }
+
+        let pendingOrders = 0;
+        try {
+          pendingOrders =
+            (await ordersCollection.countDocuments({
+              orderStatus: { $in: ["pending", "confirmed"] },
+            })) || 0;
+        } catch (e) {
+          console.log("Pending orders count skipped:", e.message);
+        }
+
+        let activeUsersCount = 0;
+        try {
+          const activeUsers = await ordersCollection.distinct("userId");
+          activeUsersCount = activeUsers ? activeUsers.length : 0;
+          console.log("Active users (distinct):", activeUsersCount);
+          console.log("Distinct userIds:", activeUsers);
+        } catch (e) {
+          console.error("Error getting active users:", e.message);
+
+          try {
+            const result = await ordersCollection
+              .aggregate([{ $group: { _id: "$userId" } }, { $count: "total" }])
+              .toArray();
+            activeUsersCount = result.length > 0 ? result[0].total : 0;
+            console.log("Active users (aggregate fallback):", activeUsersCount);
+          } catch (e2) {
+            console.error("Aggregate also failed:", e2.message);
+            activeUsersCount = 0;
+          }
+        }
+
+        console.log("Admin Stats Summary:", {
+          totalUsers,
+          totalProducts,
+          totalOrders,
+          totalRevenue,
+          pendingOrders,
+          activeUsersCount,
+        });
+
+        res.status(200).json({
+          success: true,
+          data: {
+            totalUsers,
+            totalProducts,
+            totalOrders,
+            totalRevenue,
+            pendingOrders,
+            activeUsersCount,
+          },
+        });
+      } catch (error) {
+        console.error("Error fetching admin stats:", error);
+        res.status(500).json({
+          success: false,
+          message: "Failed to fetch stats",
+          error: error.message,
+        });
       }
-    }
-
-    console.log("Admin Stats Summary:", {
-      totalUsers,
-      totalProducts,
-      totalOrders,
-      totalRevenue,
-      pendingOrders,
-      activeUsersCount
     });
-
-    res.status(200).json({
-      success: true,
-      data: {
-        totalUsers,
-        totalProducts,
-        totalOrders,
-        totalRevenue,
-        pendingOrders,
-        activeUsersCount,
-      },
-    });
-  } catch (error) {
-    console.error("Error fetching admin stats:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch stats",
-      error: error.message,
-    });
-  }
-});
     // Get all users (for admin)
     app.get("/api/admin/users", async (req, res) => {
       try {
@@ -1498,71 +1498,75 @@ async function run() {
       }
     });
 
- app.patch("/api/admin/users/:userId/status", async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const { isBlocked, role } = req.body;
+    app.patch("/api/admin/users/:userId/status", async (req, res) => {
+      try {
+        const { userId } = req.params;
+        const { isBlocked, role } = req.body;
 
-    if (!ObjectId.isValid(userId)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid user ID",
-      });
-    }
+        if (!ObjectId.isValid(userId)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid user ID",
+          });
+        }
 
-    const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
+        const user = await usersCollection.findOne({
+          _id: new ObjectId(userId),
+        });
+        if (!user) {
+          return res.status(404).json({
+            success: false,
+            message: "User not found",
+          });
+        }
 
+        const updateData = {
+          updatedAt: new Date().toISOString(),
+        };
 
-    const updateData = {
-      updatedAt: new Date().toISOString()
-    };
+        if (isBlocked !== undefined) {
+          updateData.isBlocked = isBlocked;
+        }
 
-    if (isBlocked !== undefined) {
-      updateData.isBlocked = isBlocked;
-    }
+        if (role) {
+          updateData.role = role;
+        }
 
-    if (role) {
-      updateData.role = role;
-    }
+        const result = await usersCollection.updateOne(
+          { _id: new ObjectId(userId) },
+          { $set: updateData },
+        );
 
-    const result = await usersCollection.updateOne(
-      { _id: new ObjectId(userId) },
-      { $set: updateData }
-    );
+        if (result.matchedCount === 0) {
+          return res.status(404).json({
+            success: false,
+            message: "User not found",
+          });
+        }
 
-    if (result.matchedCount === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
+        const updatedUser = await usersCollection.findOne({
+          _id: new ObjectId(userId),
+        });
 
-    const updatedUser = await usersCollection.findOne({
-      _id: new ObjectId(userId),
+        res.status(200).json({
+          success: true,
+          message:
+            isBlocked !== undefined
+              ? isBlocked
+                ? "User blocked successfully"
+                : "User unblocked successfully"
+              : "User role updated successfully",
+          data: updatedUser,
+        });
+      } catch (error) {
+        console.error("Error updating user:", error);
+        res.status(500).json({
+          success: false,
+          message: "Failed to update user",
+          error: error.message,
+        });
+      }
     });
-
-    res.status(200).json({
-      success: true,
-      message: isBlocked !== undefined 
-        ? (isBlocked ? "User blocked successfully" : "User unblocked successfully")
-        : "User role updated successfully",
-      data: updatedUser,
-    });
-  } catch (error) {
-    console.error("Error updating user:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to update user",
-      error: error.message,
-    });
-  }
-});
 
     // Delete user (admin)
     app.delete("/api/admin/users/:userId", async (req, res) => {
@@ -1719,9 +1723,104 @@ async function run() {
       }
     });
 
-  
+    // Get all orders (admin)
+    app.get("/api/admin/orders", async (req, res) => {
+      try {
+        const orders = await ordersCollection
+          .find({})
+          .sort({ createdAt: -1 })
+          .toArray();
 
-    
+        const ordersWithDetails = await Promise.all(
+          orders.map(async (order) => {
+            const product = await productsCollection.findOne({
+              _id: new ObjectId(order.productId),
+            });
+            const buyer = await usersCollection.findOne(
+              { _id: new ObjectId(order.userId) },
+              { projection: { name: 1, email: 1, phone: 1 } },
+            );
+            return {
+              ...order,
+              productDetails: product || null,
+              buyerInfo: buyer || null,
+            };
+          }),
+        );
+
+        res.status(200).json({
+          success: true,
+          data: ordersWithDetails,
+        });
+      } catch (error) {
+        console.error("Error fetching admin orders:", error);
+        res.status(500).json({
+          success: false,
+          message: "Failed to fetch orders",
+          error: error.message,
+        });
+      }
+    });
+
+    // Update order status (admin)
+    app.patch("/api/admin/orders/:orderId/status", async (req, res) => {
+      try {
+        const { orderId } = req.params;
+        const { status } = req.body;
+
+        if (!ObjectId.isValid(orderId)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid order ID",
+          });
+        }
+
+        const validStatuses = [
+          "pending",
+          "confirmed",
+          "processing",
+          "shipped",
+          "delivered",
+          "cancelled",
+        ];
+        if (!validStatuses.includes(status)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid status",
+          });
+        }
+
+        const result = await ordersCollection.updateOne(
+          { _id: new ObjectId(orderId) },
+          {
+            $set: {
+              orderStatus: status,
+              updatedAt: new Date().toISOString(),
+            },
+          },
+        );
+
+        if (result.matchedCount === 0) {
+          return res.status(404).json({
+            success: false,
+            message: "Order not found",
+          });
+        }
+
+        res.status(200).json({
+          success: true,
+          message: "Order status updated successfully",
+        });
+      } catch (error) {
+        console.error("Error updating order status:", error);
+        res.status(500).json({
+          success: false,
+          message: "Failed to update order status",
+          error: error.message,
+        });
+      }
+    });
+
     app.listen(port, () => {
       console.log(`Server is running on port ${port}`);
     });
