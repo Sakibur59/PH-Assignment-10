@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# 🛍️ ReSell Hub - Full Stack Marketplace Platform
 
-## Getting Started
+## 📋 Project Overview
 
-First, run the development server:
+ReSell Hub is a complete full-stack marketplace platform where users can buy and sell used items. It features role-based access control (Buyer, Seller, Admin), secure authentication, payment processing with Stripe, real-time order management, and a beautiful responsive UI.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+### 🎯 Key Features
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+#### 👤 Authentication & Authorization
+- Email/Password authentication with Better Auth
+- Google OAuth integration
+- Role-based access control (Buyer, Seller, Admin)
+- JWT session management (7 days expiration)
+- Protected routes and API endpoints
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+#### 👥 User Roles
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**Buyer Dashboard:**
+- Browse products with advanced filters (search, category, condition, sort)
+- View product details with multiple images
+- Add products to wishlist
+- Place orders with Stripe payment
+- Track order status
+- View payment history
+- Manage personal profile
+- Write reviews for purchased products
+- Cancel orders before shipment
 
-## Learn More
+**Seller Dashboard:**
+- Add new products with image upload
+- Manage product listings (Edit/Delete)
+- View product statistics (Total, Approved, Pending, Rejected, Stock)
+- Manage incoming orders
+- Update order status (Pending → Confirmed → Processing → Shipped → Delivered)
+- Track sales analytics
+- View sales performance charts
 
-To learn more about Next.js, take a look at the following resources:
+**Admin Dashboard:**
+- Full platform overview with statistics
+- Manage users (Block/Unblock/Delete/Update Role)
+- Manage products (Approve/Reject/Delete)
+- Manage all orders across platform
+- Platform analytics
+- User growth, category performance, revenue tracking
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+#### 🛒 Core Features
+- Product listing with stock management
+- Real-time order tracking
+- Wishlist functionality
+- Rating & review system
+- Stripe payment integration
+- Admin approval system for products
+- Advanced search and filters
+- Pagination for products
+- Responsive design
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🚀 Tech Stack
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Frontend
