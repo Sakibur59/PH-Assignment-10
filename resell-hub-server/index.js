@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const app = express();
 const port = 5000;
+const { createRemoteJWKSet,jwtVerify } = require("jose-cjs");
 require("dotenv").config();
 
 app.use(cors());
@@ -17,6 +18,28 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+
+const JWKS = createRemoteJWKSet(
+  new URL(`${process.env.CLIENT_URL}/api/auth/jwks`),
+);
+
+const verifyToken = async (req, res, next) => {
+  const authHeader = req?.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).send({ message: "Unauthorized" });
+  }
+  const token = authHeader.split(" ")[1];
+  if (!token) {
+    return res.status(401).send({ message: "Unauthorized" });
+  }
+
+  try {
+    const { payload } = await jwtVerify(token, JWKS);
+    next();
+  } catch (error) {
+    return res.status(401).send({ message: "Unauthorized" });
+  }
+};
 
 async function run() {
   try {
@@ -35,9 +58,8 @@ async function run() {
     app.get("/", (req, res) => {
       res.send("ReSell Hub API is running!");
     });
-
     //PRODUCTS API
-    app.get("/api/products", async (req, res) => {
+    app.get("/api/products",async (req, res) => {
       try {
         const products = await productsCollection.find({}).toArray();
         res.status(200).json({
@@ -87,7 +109,7 @@ async function run() {
     // ORDERS API
 
     // Create order
-    app.post("/api/orders", async (req, res) => {
+    app.post("/api/orders", verifyToken,async (req, res) => {
       try {
         const {
           userId,
@@ -178,7 +200,7 @@ async function run() {
     });
 
     // Get user's orders with full details
-    app.get("/api/orders/user/:userId", async (req, res) => {
+    app.get("/api/orders/user/:userId", verifyToken,async (req, res) => {
       try {
         const { userId } = req.params;
 
@@ -213,7 +235,7 @@ async function run() {
     });
 
     // Get single order by ID with user verification
-    app.get("/api/orders/single/:orderId/:userId", async (req, res) => {
+    app.get("/api/orders/single/:orderId/:userId", verifyToken,async (req, res) => {
       try {
         const { orderId, userId } = req.params;
 
@@ -403,7 +425,7 @@ async function run() {
     });
 
     // Get payment by order ID
-    app.get("/api/payments/:orderId", async (req, res) => {
+    app.get("/api/payments/:orderId", verifyToken,async (req, res) => {
       try {
         const { orderId } = req.params;
         const payment = await paymentsCollection.findOne({
@@ -431,7 +453,7 @@ async function run() {
     });
 
     // Get user's payments with product details
-    app.get("/api/payments/user/:userId", async (req, res) => {
+    app.get("/api/payments/user/:userId", verifyToken,async (req, res) => {
       try {
         const { userId } = req.params;
 
@@ -582,7 +604,7 @@ async function run() {
     });
 
     // Get user's wishlist
-    app.get("/api/wishlist/:userId", async (req, res) => {
+    app.get("/api/wishlist/:userId",verifyToken, async (req, res) => {
       try {
         const { userId } = req.params;
 
@@ -617,7 +639,7 @@ async function run() {
     });
 
     // Check if product is in wishlist
-    app.get("/api/wishlist/check/:userId/:productId", async (req, res) => {
+    app.get("/api/wishlist/check/:userId/:productId", verifyToken,async (req, res) => {
       try {
         const { userId, productId } = req.params;
 
@@ -641,7 +663,7 @@ async function run() {
 
     //  REVIEWS API
     // Get reviews for a product
-    app.get("/api/reviews/:productId", async (req, res) => {
+    app.get("/api/reviews/:productId", verifyToken,async (req, res) => {
       try {
         const { productId } = req.params;
 
@@ -912,7 +934,7 @@ async function run() {
     //USERS API
 
     // Get all users
-    app.get("/api/users", async (req, res) => {
+    app.get("/api/users", verifyToken,async (req, res) => {
       try {
         const users = await usersCollection.find({}).toArray();
         res.status(200).json({
@@ -929,7 +951,7 @@ async function run() {
     });
 
     // Get single user by ID
-    app.get("/api/users/:userId", async (req, res) => {
+    app.get("/api/users/:userId",verifyToken, async (req, res) => {
       try {
         const { userId } = req.params;
 
@@ -1094,7 +1116,7 @@ async function run() {
     // SELLER API
 
     // Get seller's products
-    app.get("/api/seller/products/:userId", async (req, res) => {
+    app.get("/api/seller/products/:userId", verifyToken,async (req, res) => {
       try {
         const { userId } = req.params;
 
@@ -1118,7 +1140,7 @@ async function run() {
     });
 
     // Get seller's orders
-    app.get("/api/seller/orders/:userId", async (req, res) => {
+    app.get("/api/seller/orders/:userId",verifyToken, async (req, res) => {
       try {
         const { userId } = req.params;
 
@@ -1294,7 +1316,7 @@ async function run() {
       }
     });
     // Get seller stats
-    app.get("/api/seller/stats/:userId", async (req, res) => {
+    app.get("/api/seller/stats/:userId", verifyToken,async (req, res) => {
       try {
         const { userId } = req.params;
 
@@ -1396,7 +1418,7 @@ async function run() {
 
     // ADMIN API
     //get admin stats
-    app.get("/api/admin/stats", async (req, res) => {
+    app.get("/api/admin/stats", verifyToken,async (req, res) => {
       try {
         const totalUsers = (await usersCollection.countDocuments()) || 0;
         const totalProducts = (await productsCollection.countDocuments()) || 0;
@@ -1478,7 +1500,7 @@ async function run() {
       }
     });
     // Get all users (for admin)
-    app.get("/api/admin/users", async (req, res) => {
+    app.get("/api/admin/users",verifyToken, async (req, res) => {
       try {
         const users = await usersCollection
           .find({})
@@ -1616,7 +1638,7 @@ async function run() {
     });
 
     // Get all products (for admin)
-    app.get("/api/admin/products", async (req, res) => {
+    app.get("/api/admin/products", verifyToken,async (req, res) => {
       try {
         const products = await productsCollection
           .find({})
@@ -1724,7 +1746,7 @@ async function run() {
     });
 
     // Get all orders (admin)
-    app.get("/api/admin/orders", async (req, res) => {
+    app.get("/api/admin/orders", verifyToken,async (req, res) => {
       try {
         const orders = await ordersCollection
           .find({})
