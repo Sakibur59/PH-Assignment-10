@@ -74,7 +74,7 @@ export default function SellerOverview() {
                   <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
                 </div>
                 <div className={`w-12 h-12 rounded-lg ${stat.color} bg-opacity-10 flex items-center justify-center`}>
-                  <Icon className={`w-6 h-6 ${stat.color.replace("bg-", "text-")}`} />
+                  <Icon className={`w-6 h-6 ${stat.color.replace("bg-", "text-900")}`} />
                 </div>
               </div>
             </div>
