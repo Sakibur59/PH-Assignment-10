@@ -25,7 +25,7 @@ A modern full-stack marketplace where users can securely buy and sell second-han
 
 # 🌐 Live Demo
 
-🚀 **Live Site:** https://your-live-site.vercel.app
+🚀 **Live Site:** https://github.com/Sakibur59/PH-Assignment-10
 
 💻 **Client Repository:** https://github.com/Sakibur59/PH-Assignment-10
 
