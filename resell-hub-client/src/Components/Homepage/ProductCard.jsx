@@ -184,7 +184,7 @@ export default function ProductCard({ product }) {
             <button
               onClick={handleWishlistToggle}
               disabled={isLoading}
-              className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all flex-shrink-0 ${
+              className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all flex-shrink-0 cursor-pointer ${
                 isWishlisted
                   ? "bg-red-50 text-red-500 border border-red-200"
                   : "bg-gray-100 text-gray-400 hover:bg-red-50 hover:text-red-500"

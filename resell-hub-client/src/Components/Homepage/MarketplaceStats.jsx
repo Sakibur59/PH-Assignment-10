@@ -71,7 +71,7 @@ export default function MarketplaceStats() {
         ))}
       </div>
 
-      {/* Animated Counter Effect with Progress Bars */}
+      {/* Animated Counter*/}
       <div className="mt-12 grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-emerald-50 rounded-lg p-4">
           <div className="flex justify-between text-sm mb-1">
